@@ -1,5 +1,15 @@
 package com.example.travel
 
+import android.Manifest
+import android.content.Context
+import android.content.Intent
+import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
@@ -28,10 +38,104 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.delay
 import java.util.Locale
 import kotlin.math.cos
 import kotlin.math.sin
+
+
+// Hotel/Destination data class
+data class HotelDestination(
+    val name: String,
+    val region: String,
+    val type: String,
+    val rating: Double,
+    val numReviews: Int,
+    val priceRange: String,
+    val description: String,
+    val lat: Double,
+    val lon: Double,
+    val reviews: List<LogEntry>
+)
+
+val initialHotels = listOf(
+    HotelDestination(
+        name = "The Grand Dragon Ladakh",
+        region = "Leh, Ladakh",
+        type = "Luxury Hotel",
+        rating = 4.8,
+        numReviews = 124,
+        priceRange = "₹₹₹₹",
+        description = "Experience warm Ladakhi hospitality with gorgeous views of the Stok Kangri mountain range.",
+        lat = 34.1526,
+        lon = 77.5771,
+        reviews = listOf(
+            LogEntry("RS", "RAHUL SHARMA", "3 HOURS AGO", "10M AWAY", true, true, "Excellent hospitality! The rooms are cozy, and the view of the snow-capped Stok range is breathtaking."),
+            LogEntry("AP", "AMIT PATEL", "1 DAY AGO", "12M AWAY", false, false, "Very friendly staff. They have oxygen facilities ready for travelers acclimatizing to high altitude.")
+        )
+    ),
+    HotelDestination(
+        name = "Solang Valley Resort",
+        region = "Manali, Himachal Pradesh",
+        type = "Riverside Resort",
+        rating = 4.6,
+        numReviews = 98,
+        priceRange = "₹₹₹",
+        description = "Nestled amidst snow-clad peaks and tea gardens, situated right on the banks of River Beas.",
+        lat = 32.2432,
+        lon = 77.1892,
+        reviews = listOf(
+            LogEntry("PK", "PRIYA KAPOOR", "2 HOURS AGO", "5M AWAY", true, true, "Beautiful riverfront property. Quiet and peaceful compared to the crowded town."),
+            LogEntry("SS", "SUNIL SINGH", "3 DAYS AGO", "25M AWAY", false, false, "Adventure sports like paragliding are right outside the resort. Loved it!")
+        )
+    ),
+    HotelDestination(
+        name = "The Leela Palace Jaipur",
+        region = "Jaipur, Rajasthan",
+        type = "Heritage Palace",
+        rating = 4.9,
+        numReviews = 210,
+        priceRange = "₹₹₹₹₹",
+        description = "A majestic palace hotel that showcases the rich heritage of Rajputana architecture and grandeur.",
+        lat = 26.9124,
+        lon = 75.7873,
+        reviews = listOf(
+            LogEntry("VS", "VIKRAM SEN", "6 HOURS AGO", "15M AWAY", true, true, "A majestic royal experience! The architecture and service make you feel like royalty."),
+            LogEntry("JD", "JYOTI DESAI", "2 DAYS AGO", "40M AWAY", false, false, "Beautiful gardens and amazing traditional folk dances in the evening.")
+        )
+    ),
+    HotelDestination(
+        name = "Taj Exotica Resort & Spa",
+        region = "Benaulim, Goa",
+        type = "Beachfront Resort",
+        rating = 4.7,
+        numReviews = 185,
+        priceRange = "₹₹₹₹",
+        description = "Spread across 56 acres of lush gardens, this Mediterranean-style oasis sits on a white-sand beach.",
+        lat = 15.2713,
+        lon = 73.9224,
+        reviews = listOf(
+            LogEntry("RC", "ROHAN CHAWLA", "4 HOURS AGO", "20M AWAY", true, true, "Private beach access and extremely clean. A paradise for families."),
+            LogEntry("MD", "MEERA DUTT", "1 DAY AGO", "35M AWAY", false, false, "Excellent seafood at the beach restaurant. The rooms are spacious and clean.")
+        )
+    ),
+    HotelDestination(
+        name = "Munnar Tea Hills Resort",
+        region = "Munnar, Kerala",
+        type = "Hillside Villa",
+        rating = 4.5,
+        numReviews = 76,
+        priceRange = "₹₹₹",
+        description = "Wake up to spectacular views of tea plantations and mist-covered hills in the heart of Munnar.",
+        lat = 10.0889,
+        lon = 77.0595,
+        reviews = listOf(
+            LogEntry("AN", "ANIL NAIR", "5 HOURS AGO", "8M AWAY", true, true, "Waking up to the view of tea plantations was magical. Very clean and green."),
+            LogEntry("SL", "SHERIN LUKE", "4 DAYS AGO", "50M AWAY", false, false, "Highly recommended for nature lovers. Peaceful atmosphere and friendly staff.")
+        )
+    )
+)
 
 // Define tabs
 enum class Tab {
@@ -40,20 +144,74 @@ enum class Tab {
 
 @Composable
 fun NexusGuideScreen() {
+    val context = LocalContext.current
     var activeTab by remember { mutableStateOf(Tab.HOME) }
-    var coordinates by remember { mutableStateOf("64.9631° N, 19.0208° W") }
+    var userLat by remember { mutableStateOf(34.1526) }
+    var userLon by remember { mutableStateOf(77.5771) }
+    var userLocationName by remember { mutableStateOf("Leh, Ladakh") }
+    var coordinates by remember { mutableStateOf("34.1526° N, 77.5771° E") }
     var showEmergencyDialog by remember { mutableStateOf(false) }
     var isEmergencyBroadcasting by remember { mutableStateOf(false) }
 
+    // Hotels database states
+    val hotelsList = remember { mutableStateListOf(*initialHotels.toTypedArray()) }
+    var selectedHotelIndex by remember { mutableIntStateOf(0) }
+
+    val locationLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
+        val coarseGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if (fineGranted || coarseGranted) {
+            try {
+                val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+                val isGpsEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)
+                val isNetworkEnabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+                
+                val provider = when {
+                    isGpsEnabled -> LocationManager.GPS_PROVIDER
+                    isNetworkEnabled -> LocationManager.NETWORK_PROVIDER
+                    else -> null
+                }
+                
+                if (provider != null) {
+                    val lastKnown = locationManager.getLastKnownLocation(provider)
+                    if (lastKnown != null) {
+                        userLat = lastKnown.latitude
+                        userLon = lastKnown.longitude
+                        userLocationName = "GPS Location"
+                        Toast.makeText(context, "Location synced with GPS!", Toast.LENGTH_SHORT).show()
+                    } else {
+                        locationManager.requestSingleUpdate(provider, object : LocationListener {
+                            override fun onLocationChanged(location: Location) {
+                                userLat = location.latitude
+                                userLon = location.longitude
+                                userLocationName = "GPS Location"
+                            }
+                            override fun onStatusChanged(provider: String?, status: Int, extras: android.os.Bundle?) {}
+                            override fun onProviderEnabled(provider: String) {}
+                            override fun onProviderDisabled(provider: String) {}
+                        }, null)
+                        Toast.makeText(context, "Requesting GPS coordinates...", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    Toast.makeText(context, "Please enable Location settings on your device.", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: SecurityException) {
+                Toast.makeText(context, "Location permission error: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            Toast.makeText(context, "Location permissions denied.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     // Coordinates drift simulation (live telemetry telemetry drift)
-    LaunchedEffect(Unit) {
-        val baseLat = 64.9631
-        val baseLon = 19.0208
+    LaunchedEffect(userLat, userLon) {
         while (true) {
+            val jitterLat = (Math.random() * 0.0004) - 0.0002
+            val jitterLon = (Math.random() * 0.0004) - 0.0002
+            coordinates = String.format(Locale.US, "%.4f° N, %.4f° E", userLat + jitterLat, userLon + jitterLon)
             delay(3000)
-            val jitterLat = (Math.random() * 0.0005) - 0.00025
-            val jitterLon = (Math.random() * 0.0005) - 0.00025
-            coordinates = String.format(Locale.US, "%.4f° N, %.4f° W", baseLat + jitterLat, baseLon + jitterLon)
         }
     }
 
@@ -77,12 +235,36 @@ fun NexusGuideScreen() {
                 when (activeTab) {
                     Tab.HOME -> HomeScreen(
                         coordinates = coordinates,
+                        userLocationName = userLocationName,
                         onNavigateToMaps = { activeTab = Tab.MAPS },
-                        onTriggerEmergency = { showEmergencyDialog = true }
+                        onTriggerEmergency = { showEmergencyDialog = true },
+                        onRequestLocation = {
+                            locationLauncher.launch(
+                                arrayOf(
+                                    Manifest.permission.ACCESS_FINE_LOCATION,
+                                    Manifest.permission.ACCESS_COARSE_LOCATION
+                                )
+                            )
+                        }
                     )
-                    Tab.MAPS -> MapsScreen()
+                    Tab.MAPS -> MapsScreen(
+                        userLat = userLat,
+                        userLon = userLon,
+                        coordinates = coordinates,
+                        hotelsList = hotelsList,
+                        selectedHotelIndex = selectedHotelIndex,
+                        onHotelSelected = { selectedHotelIndex = it },
+                        onSimulateLocation = { lat, lon, name ->
+                            userLat = lat
+                            userLon = lon
+                            userLocationName = name
+                        }
+                    )
                     Tab.TRANSLATE -> TranslateScreen()
-                    Tab.PROFILE -> ProfileScreen()
+                    Tab.PROFILE -> ProfileScreen(
+                        userLocationName = userLocationName,
+                        coordinates = coordinates
+                    )
                 }
             }
 
@@ -142,7 +324,7 @@ fun NexusTopAppBar(activeTab: Tab) {
                 modifier = Modifier.size(18.dp)
             )
             Text(
-                text = "NEXUS GUIDE",
+                text = "TRAVEL BUDDY",
                 color = MaterialTheme.colorScheme.primary,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
@@ -199,7 +381,7 @@ fun NexusTopAppBar(activeTab: Tab) {
                     horizontalAlignment = Alignment.End
                 ) {
                     Text(
-                        text = "EXPLORER_01",
+                        text = "TRAVELER_01",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontFamily = FontFamily.Monospace,
                         fontSize = 10.sp
@@ -329,8 +511,10 @@ fun TabItem(
 @Composable
 fun HomeScreen(
     coordinates: String,
+    userLocationName: String,
     onNavigateToMaps: () -> Unit,
-    onTriggerEmergency: () -> Unit
+    onTriggerEmergency: () -> Unit,
+    onRequestLocation: () -> Unit
 ) {
     var isScanning by remember { mutableStateOf(false) }
 
@@ -350,13 +534,22 @@ fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // Hero Card
-        HeroCard(coordinates = coordinates)
+        HeroCard(userLocationName = userLocationName, coordinates = coordinates)
+
+        // Action 0: Sync Location via GPS
+        FullWidthActionButton(
+            icon = { ProximityLockIcon(color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp)) },
+            label = "SYNC TELEMETRY",
+            title = if (userLocationName == "GPS Location") "GPS SIGNAL VERIFIED" else "SYNC GPS LOCATION",
+            labelColor = MaterialTheme.colorScheme.primary,
+            onClick = onRequestLocation
+        )
 
         // Action 1: Full-width scan image button
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(240.dp)
+                .height(200.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .border(
                     1.dp,
@@ -387,7 +580,7 @@ fun HomeScreen(
                     .padding(horizontal = 6.dp, vertical = 3.dp)
             ) {
                 Text(
-                    text = if (isScanning) "SCANNING..." else "SCAN_DATA_07",
+                    text = if (isScanning) "SCANNING RADAR..." else "REGIONAL_RADAR_09",
                     color = MaterialTheme.colorScheme.primary,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 9.sp,
@@ -423,8 +616,8 @@ fun HomeScreen(
         // Action 2: Open Offline Map (Full width)
         FullWidthActionButton(
             icon = { DownloadOfflineIcon(color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp)) },
-            label = "OPEN",
-            title = "OFFLINE MAP",
+            label = "LAUNCH MODULE",
+            title = "EXPLORE OFFLINE DATABASE",
             labelColor = MaterialTheme.colorScheme.primary,
             onClick = onNavigateToMaps
         )
@@ -432,8 +625,8 @@ fun HomeScreen(
         // Action 3: Emergency Broadcast (Full width)
         FullWidthActionButton(
             icon = { EmergencyShareIcon(color = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(28.dp)) },
-            label = "EXECUTE",
-            title = "EMERGENCY TR.",
+            label = "SOS PAYLOAD",
+            title = "EMERGENCY BROADCAST",
             labelColor = MaterialTheme.colorScheme.tertiary,
             onClick = onTriggerEmergency
         )
@@ -450,13 +643,13 @@ fun HomeScreen(
                 modifier = Modifier.weight(1f),
                 icon = { ThermostatIcon(color = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(16.dp)) },
                 label = "TEMP",
-                value = "-12°C"
+                value = "22°C"
             )
             TelemetryMiniCard(
                 modifier = Modifier.weight(1f),
                 icon = { WindIcon(color = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(16.dp)) },
                 label = "WIND",
-                value = "24 KM/H"
+                value = "12 KM/H"
             )
         }
 
@@ -569,7 +762,7 @@ fun EmergencyShareIcon(modifier: Modifier = Modifier, color: Color = MaterialThe
 }
 
 @Composable
-fun HeroCard(coordinates: String) {
+fun HeroCard(userLocationName: String, coordinates: String) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -622,7 +815,7 @@ fun HeroCard(coordinates: String) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                // Red pulse dot
+                // Green pulse dot
                 val infiniteTransition = rememberInfiniteTransition()
                 val pulseOpacity by infiniteTransition.animateFloat(
                     initialValue = 0.3f,
@@ -636,10 +829,10 @@ fun HeroCard(coordinates: String) {
                     modifier = Modifier
                         .size(8.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFE24B4B).copy(alpha = pulseOpacity))
+                        .background(Color(0xFF4BE277).copy(alpha = pulseOpacity))
                 )
                 Text(
-                    text = "LOCKED",
+                    text = "ACTIVE",
                     color = MaterialTheme.colorScheme.onSurface,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 10.sp,
@@ -666,7 +859,7 @@ fun HeroCard(coordinates: String) {
                         .background(MaterialTheme.colorScheme.outline)
                 )
                 Text(
-                    text = "OFFLINE MODE ACTIVE",
+                    text = "OFFLINE MODE READY",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 9.sp,
@@ -686,7 +879,7 @@ fun HeroCard(coordinates: String) {
 
             // Description
             Text(
-                text = "VATNAJÖKULL NATIONAL PARK - SECTOR 7-B.\nLocal signal strength: CRITICAL.",
+                text = "${userLocationName.uppercase()} - HIMALAYAN EXPEDITION\nLocal region telemetry synchronized.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 11.sp,
                 fontFamily = FontFamily.SansSerif,
@@ -1067,55 +1260,25 @@ fun EmergencyProtocolCard() {
 // SCREEN 2: SCI-FI MAPS SCREEN
 // ----------------------------------------------------
 @Composable
-fun MapsScreen() {
-    var elevation by remember { mutableStateOf(2450) }
+fun MapsScreen(
+    userLat: Double,
+    userLon: Double,
+    coordinates: String,
+    hotelsList: androidx.compose.runtime.snapshots.SnapshotStateList<HotelDestination>,
+    selectedHotelIndex: Int,
+    onHotelSelected: (Int) -> Unit,
+    onSimulateLocation: (Double, Double, String) -> Unit
+) {
+    var showNetworkMap by remember { mutableStateOf(false) }
+    val selectedHotel = hotelsList.getOrNull(selectedHotelIndex) ?: hotelsList[0]
+
+    // Calculate distance to selected hotel
+    val distance = calculateDistance(userLat, userLon, selectedHotel.lat, selectedHotel.lon)
+    val isEligible = distance <= 100.0
+
     var showAddReviewDialog by remember { mutableStateOf(false) }
     var newReviewText by remember { mutableStateOf("") }
-    var newReviewAuthor by remember { mutableStateOf("EXPLORER_01") }
-
-    // Simulated elevation sensor drift (+/- 1M every 5s)
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(5000)
-            val drift = (-1..1).random()
-            elevation = (elevation + drift).coerceIn(2445, 2455)
-        }
-    }
-
-    // Mutable list of log records to show dynamic review adding
-    val logsList = remember {
-        mutableStateListOf(
-            LogEntry(
-                initials = "EX_42",
-                name = "EXPLORER_ALFA",
-                timeAgo = "3 HOURS AGO",
-                distance = "12M AWAY",
-                isNearest = true,
-                isAlfa = true,
-                comment = "Water source is currently frozen. Shelter structure remains 100% intact. High winds recorded at night.",
-                photos = listOf(R.drawable.frozen_pump, R.drawable.shelter_interior)
-            ),
-            LogEntry(
-                initials = "TR_09",
-                name = "TRAIL_WATCHER",
-                timeAgo = "1 DAY AGO",
-                distance = "45M AWAY",
-                isNearest = false,
-                isAlfa = false,
-                comment = "Perfect waypoint. Signal is strongest on the north-facing balcony. Log book is full, needs replacement."
-            ),
-            LogEntry(
-                initials = "GT_88",
-                name = "GUIDE_THOMAS",
-                timeAgo = "3 DAYS AGO",
-                distance = "8M AWAY",
-                isNearest = false,
-                isAlfa = false,
-                comment = "Solid outpost. The solar array is clean and charging well. Highly recommend for a multi-day hub.",
-                opacity = 0.8f
-            )
-        )
-    }
+    var newReviewAuthor by remember { mutableStateOf("TRAVELER_01") }
 
     Box(
         modifier = Modifier.fillMaxSize()
@@ -1123,302 +1286,400 @@ fun MapsScreen() {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Hero / Header Card
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .border(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-                        shape = RoundedCornerShape(8.dp)
-                    )
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.alpine_outpost),
-                    contentDescription = "Alpine Outpost Scenery",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f)),
-                                startY = 180f
-                            )
-                        )
-                )
-
-                // Outpost metadata overlay bottom-left
-                Column(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        text = "ALPINE OUTPOST",
-                        color = Color.White,
-                        fontFamily = FontFamily.SansSerif,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp,
-                        letterSpacing = 0.5.sp
-                    )
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        // Rating stars (4.5 rating)
-                        Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                            StarIcon(filled = true)
-                            StarIcon(filled = true)
-                            StarIcon(filled = true)
-                            StarIcon(filled = true)
-                            HalfStarIcon()
-                        }
-                        Text(
-                            text = "4.8 (124 VERIFIED)",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 11.sp
-                        )
-                    }
-                }
-            }
-
-            // Proximity Lock Verification Card
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
-                    .border(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
-                        shape = RoundedCornerShape(8.dp)
-                    )
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
-                    .padding(16.dp)
-            ) {
-                // Background watermarked icon decoration
-                ShieldIcon(
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
-                    modifier = Modifier
-                        .size(64.dp)
-                        .align(Alignment.TopEnd)
-                        .offset(x = 8.dp, y = (-8).dp)
-                )
-
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
-                                .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            ProximityLockIcon(color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                        }
-                        Column {
-                            Text(
-                                text = "PROXIMITY_LOCK: UNLOCKED",
-                                color = MaterialTheme.colorScheme.primary,
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 0.5.sp
-                            )
-                            Text(
-                                text = "You are within 50m - Review Access Granted",
-                                color = Color.White,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-
-                    // Action Button
-                    Button(
-                        onClick = { showAddReviewDialog = true },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp),
-                        shape = RoundedCornerShape(4.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        )
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            RateReviewIcon(color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(16.dp))
-                            Text(
-                                text = "ADD VERIFIED REVIEW",
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.sp
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Stats Bento Grid (Elevation / Connectivity)
+            // View Selector Tabs
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                // Elevation
+                Button(
+                    onClick = { showNetworkMap = false },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (!showNetworkMap) MaterialTheme.colorScheme.primary else Color.Transparent,
+                        contentColor = if (!showNetworkMap) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    shape = RoundedCornerShape(6.dp),
+                    contentPadding = PaddingValues(0.dp)
+                ) {
+                    Text("HOTELS & REVIEWS", fontFamily = FontFamily.Monospace, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                }
+
+                Button(
+                    onClick = { showNetworkMap = true },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (showNetworkMap) MaterialTheme.colorScheme.primary else Color.Transparent,
+                        contentColor = if (showNetworkMap) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    shape = RoundedCornerShape(6.dp),
+                    contentPadding = PaddingValues(0.dp)
+                ) {
+                    Text("SIGNAL COVERAGE", fontFamily = FontFamily.Monospace, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            if (!showNetworkMap) {
+                // HOTELS & REVIEWS MODE
                 Column(
                     modifier = Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(4.dp))
-                        .border(
-                            width = 0.5.dp,
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-                            shape = RoundedCornerShape(4.dp)
-                        )
-                        .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                        .padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    // Hotel Selector LazyRow
                     Text(
-                        text = "ELEVATION",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = String.format(Locale.US, "%,dM", elevation),
+                        text = "EXPLORE OFFLINE REGISTRY",
                         color = MaterialTheme.colorScheme.primary,
                         fontFamily = FontFamily.Monospace,
-                        fontSize = 18.sp,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        hotelsList.forEachIndexed { index, hotel ->
+                            Box(
+                                modifier = Modifier
+                                    .width(180.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .border(
+                                        width = 1.dp,
+                                        color = if (selectedHotelIndex == index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                    .background(if (selectedHotelIndex == index) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceContainer)
+                                    .clickable { onHotelSelected(index) }
+                                    .padding(12.dp)
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text(
+                                        text = hotel.name,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 12.sp,
+                                        maxLines = 1
+                                    )
+                                    Text(
+                                        text = hotel.region,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontSize = 10.sp
+                                    )
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Text(
+                                            text = hotel.rating.toString(),
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 10.sp
+                                        )
+                                        Text(
+                                            text = hotel.priceRange,
+                                            color = MaterialTheme.colorScheme.secondary,
+                                            fontSize = 10.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Hotel Detail Card
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(180.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .border(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.alpine_outpost),
+                            contentDescription = "Hotel Scenery",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    Brush.verticalGradient(
+                                        colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f)),
+                                        startY = 120f
+                                    )
+                                )
+                        )
+
+                        // Info overlays
+                        Column(
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = selectedHotel.name,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp
+                            )
+                            Text(
+                                text = selectedHotel.description,
+                                color = Color.LightGray,
+                                fontSize = 11.sp,
+                                maxLines = 2
+                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    repeat(selectedHotel.rating.toInt()) {
+                                        StarIcon(filled = true)
+                                    }
+                                    if (selectedHotel.rating % 1.0 > 0.4) {
+                                        HalfStarIcon()
+                                    }
+                                }
+                                Text(
+                                    text = "${selectedHotel.rating} (${selectedHotel.numReviews} OFFLINE REVIEWS)",
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 10.sp
+                                )
+                            }
+                        }
+                    }
+
+                    // Proximity Verification & Simulation Card
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .border(
+                                width = 1.dp,
+                                color = if (isEligible) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.error.copy(alpha = 0.5f),
+                                shape = RoundedCornerShape(8.dp)
+                            )
+                            .background(if (isEligible) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else MaterialTheme.colorScheme.error.copy(alpha = 0.08f))
+                            .padding(16.dp)
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                        .background(if (isEligible) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.error.copy(alpha = 0.2f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    ProximityLockIcon(
+                                        color = if (isEligible) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                Column {
+                                    Text(
+                                        text = if (isEligible) "PROXIMITY_LOCK: UNLOCKED" else "PROXIMITY_LOCK: LOCKED",
+                                        color = if (isEligible) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    val distText = if (distance < 1000) String.format(Locale.US, "%,.0fm", distance) else String.format(Locale.US, "%,.2f km", distance / 1000.0)
+                                    Text(
+                                        text = if (isEligible) "You are at this location ($distText) - Review Access Granted" 
+                                               else "You are $distText away. You must be within 100m to review.",
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Button(
+                                    onClick = { showAddReviewDialog = true },
+                                    enabled = isEligible,
+                                    modifier = Modifier.weight(1f).height(40.dp),
+                                    shape = RoundedCornerShape(4.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.primary,
+                                        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                                    )
+                                ) {
+                                    Text("ADD VERIFIED REVIEW", fontSize = 10.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                }
+
+                                if (!isEligible) {
+                                    Button(
+                                        onClick = { onSimulateLocation(selectedHotel.lat, selectedHotel.lon, selectedHotel.name) },
+                                        modifier = Modifier.weight(1f).height(40.dp),
+                                        shape = RoundedCornerShape(4.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.secondary
+                                        )
+                                    ) {
+                                        Text("SIMULATE ARRIVAL", fontSize = 10.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Reviews List
+                    Text(
+                        text = "VERIFIED LOCAL REVIEWS",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
                     )
-                }
 
-                // Connectivity
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        selectedHotel.reviews.forEach { log ->
+                            LogCard(log = log)
+                        }
+                    }
+                }
+            } else {
+                // NETWORK COVERAGE MAP MODE
                 Column(
                     modifier = Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(4.dp))
-                        .border(
-                            width = 0.5.dp,
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-                            shape = RoundedCornerShape(4.dp)
-                        )
-                        .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                        .padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Text(
-                        text = "CONNECTIVITY",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        text = "COORDINATE SPECTRUM RADAR",
+                        color = MaterialTheme.colorScheme.primary,
                         fontFamily = FontFamily.Monospace,
                         fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
                     )
-                    Text(
-                        text = "STABLE_VHF",
-                        color = MaterialTheme.colorScheme.tertiary,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
 
-            // Verified logs header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "VERIFIED_LOGS",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "FILTER: DISTANCE_NEAREST",
-                    color = MaterialTheme.colorScheme.primary,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            // Logs / Reviews list Column
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                logsList.forEach { log ->
-                    LogCard(log = log)
-                }
-            }
-
-            // Distance Visualizer (Atmospheric)
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                ) {
+                    // Network coverage radar representation
                     Box(
                         modifier = Modifier
-                            .fillMaxHeight()
-                            .fillMaxWidth(0.66f)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(MaterialTheme.colorScheme.primary)
-                    )
-                }
+                            .fillMaxWidth()
+                            .height(280.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceContainerLowest)
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        val infiniteTransition = rememberInfiniteTransition()
+                        val radarRadius by infiniteTransition.animateFloat(
+                            initialValue = 0.2f,
+                            targetValue = 0.9f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(2000, easing = LinearEasing),
+                                repeatMode = RepeatMode.Restart
+                            )
+                        )
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(text = "0M", color = MaterialTheme.colorScheme.onSurfaceVariant, fontFamily = FontFamily.Monospace, fontSize = 8.sp)
-                    Text(text = "50M_LIMIT", color = MaterialTheme.colorScheme.primary, fontFamily = FontFamily.Monospace, fontSize = 8.sp, fontWeight = FontWeight.Bold)
-                    Text(text = "500M", color = MaterialTheme.colorScheme.onSurfaceVariant, fontFamily = FontFamily.Monospace, fontSize = 8.sp)
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            val w = size.width
+                            val h = size.height
+                            val cx = w / 2f
+                            val cy = h / 2f
+
+                            // Draw radar grids
+                            drawCircle(color = Color(0xFF1E88E5).copy(alpha = 0.1f), radius = w * 0.4f, center = Offset(cx, cy), style = Stroke(width = 1.5.dp.toPx()))
+                            drawCircle(color = Color(0xFF1E88E5).copy(alpha = 0.1f), radius = w * 0.25f, center = Offset(cx, cy), style = Stroke(width = 1.dp.toPx()))
+                            drawCircle(color = Color(0xFF1E88E5).copy(alpha = 0.15f), radius = w * 0.4f * radarRadius, center = Offset(cx, cy), style = Stroke(width = 2.dp.toPx()))
+
+                            // Draw lines
+                            drawLine(color = Color(0xFF1E88E5).copy(alpha = 0.15f), start = Offset(0f, cy), end = Offset(w, cy), strokeWidth = 1.dp.toPx())
+                            drawLine(color = Color(0xFF1E88E5).copy(alpha = 0.15f), start = Offset(cx, 0f), end = Offset(cx, h), strokeWidth = 1.dp.toPx())
+
+                            // Draw simulated signal towers on screen
+                            // Tower 1 (Jio 5G)
+                            drawCircle(color = Color(0xFF4BE277), radius = 6.dp.toPx(), center = Offset(cx - 80.dp.toPx(), cy - 40.dp.toPx()))
+                            // Tower 2 (Airtel 4G)
+                            drawCircle(color = Color(0xFF4BE277), radius = 6.dp.toPx(), center = Offset(cx + 90.dp.toPx(), cy + 30.dp.toPx()))
+                            // Tower 3 (BSNL 3G)
+                            drawCircle(color = Color(0xFFFFB300), radius = 6.dp.toPx(), center = Offset(cx - 30.dp.toPx(), cy + 60.dp.toPx()))
+
+                            // Draw user in center
+                            drawCircle(color = Color(0xFFE24B4B), radius = 8.dp.toPx(), center = Offset(cx, cy))
+                            drawCircle(color = Color(0xFFE24B4B).copy(alpha = 0.3f), radius = 16.dp.toPx(), center = Offset(cx, cy))
+                        }
+
+                        // Text overlays on radar
+                        Box(modifier = Modifier.align(Alignment.TopStart).background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(2.dp)).padding(4.dp)) {
+                            Text("USER_LOC (0,0)", color = Color(0xFFE24B4B), fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+                        }
+                        Box(modifier = Modifier.align(Alignment.TopEnd).background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(2.dp)).padding(4.dp)) {
+                            Text("SCAN: 5G/4G BAND", color = Color(0xFF4BE277), fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+                        }
+                    }
+
+                    // Signals List
+                    Text(
+                        text = "NEAREST CELLULAR TOWERS",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    // Towers display list
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        TowerRow(name = "Jio Tower (5G Spectrum)", distance = "140m Away", strength = "EXCELLENT", color = Color(0xFF4BE277))
+                        TowerRow(name = "Airtel Tower (4G LTE)", distance = "210m Away", strength = "GOOD", color = Color(0xFF4BE277))
+                        TowerRow(name = "BSNL Tower (3G Network)", distance = "70m Away", strength = "WEAK", color = Color(0xFFFFB300))
+                    }
+
+                    // Guidance advice
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+                            .padding(12.dp)
+                    ) {
+                        Text(
+                            text = "GUIDANCE ADVICE: Walk South-West toward Jio Tower (5G) for optimal data upload bandwidth. Expected signal strength will increase to 88dBm.",
+                            color = MaterialTheme.colorScheme.primary,
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.SansSerif,
+                            lineHeight = 16.sp
+                        )
+                    }
                 }
             }
         }
 
-        // Review Composer Dialog
+        // Add Review Dialog
         if (showAddReviewDialog) {
             AlertDialog(
                 onDismissRequest = { showAddReviewDialog = false },
                 title = {
                     Text(
-                        text = "ADD VERIFIED EXPLORER LOG",
+                        text = "ADD VERIFIED REVIEW",
                         color = MaterialTheme.colorScheme.primary,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
@@ -1428,14 +1689,14 @@ fun MapsScreen() {
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text(
-                            text = "Outpost coordinates synced. Type your transmission below:",
+                            text = "GPS verified check-in complete. Type your review below:",
                             color = MaterialTheme.colorScheme.onSurface,
                             fontSize = 12.sp
                         )
                         OutlinedTextField(
                             value = newReviewText,
                             onValueChange = { newReviewText = it },
-                            label = { Text("Log Entry Content") },
+                            label = { Text("Review Comments") },
                             modifier = Modifier.fillMaxWidth(),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = MaterialTheme.colorScheme.primary,
@@ -1445,7 +1706,7 @@ fun MapsScreen() {
                         OutlinedTextField(
                             value = newReviewAuthor,
                             onValueChange = { newReviewAuthor = it },
-                            label = { Text("Callsign / Handle") },
+                            label = { Text("Your Name") },
                             modifier = Modifier.fillMaxWidth(),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = MaterialTheme.colorScheme.primary,
@@ -1459,17 +1720,19 @@ fun MapsScreen() {
                     Button(
                         onClick = {
                             if (newReviewText.isNotEmpty()) {
-                                logsList.add(
-                                    0,
-                                    LogEntry(
-                                        initials = if (newReviewAuthor.length >= 2) newReviewAuthor.take(2).uppercase() else "EX",
-                                        name = newReviewAuthor.uppercase(),
-                                        timeAgo = "JUST NOW",
-                                        distance = "0M AWAY",
-                                        isNearest = true,
-                                        isAlfa = false,
-                                        comment = newReviewText
-                                    )
+                                val currentReviews = selectedHotel.reviews.toMutableList()
+                                currentReviews.add(0, LogEntry(
+                                    initials = if (newReviewAuthor.length >= 2) newReviewAuthor.take(2).uppercase() else "TR",
+                                    name = newReviewAuthor.uppercase(),
+                                    timeAgo = "JUST NOW",
+                                    distance = "0M AWAY",
+                                    isNearest = true,
+                                    isAlfa = false,
+                                    comment = newReviewText
+                                ))
+                                hotelsList[selectedHotelIndex] = selectedHotel.copy(
+                                    reviews = currentReviews,
+                                    numReviews = selectedHotel.numReviews + 1
                                 )
                                 newReviewText = ""
                                 showAddReviewDialog = false
@@ -1478,7 +1741,7 @@ fun MapsScreen() {
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                     ) {
                         Text(
-                            text = "SUBMIT LOG MATRIX",
+                            text = "SUBMIT REVIEW",
                             color = MaterialTheme.colorScheme.onPrimary,
                             fontFamily = FontFamily.Monospace,
                             fontSize = 10.sp,
@@ -1489,7 +1752,7 @@ fun MapsScreen() {
                 dismissButton = {
                     TextButton(onClick = { showAddReviewDialog = false }) {
                         Text(
-                            text = "ABORT",
+                            text = "CANCEL",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontFamily = FontFamily.Monospace,
                             fontSize = 10.sp
@@ -1500,6 +1763,45 @@ fun MapsScreen() {
         }
     }
 }
+
+@Composable
+fun TowerRow(name: String, distance: String, strength: String, color: Color) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(6.dp))
+            .border(width = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f), shape = RoundedCornerShape(6.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainer)
+            .padding(12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(name, fontWeight = FontWeight.Bold, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface)
+            Text(distance, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontFamily = FontFamily.Monospace)
+        }
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(4.dp))
+                .background(color.copy(alpha = 0.15f))
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+        ) {
+            Text(strength, color = color, fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+        }
+    }
+}
+
+fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+    val r = 6371000.0 // Earth radius in meters
+    val dLat = Math.toRadians(lat2 - lat1)
+    val dLon = Math.toRadians(lon2 - lon1)
+    val a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2)
+    val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+    return r * c
+}
+
 
 // Data class represent logs
 data class LogEntry(
@@ -1649,30 +1951,105 @@ fun TranslateScreen() {
     var textInput by remember { mutableStateOf("") }
     var textOutput by remember { mutableStateOf("") }
     var isTranslating by remember { mutableStateOf(false) }
+    var selectedLang by remember { mutableStateOf("Hindi") }
+    
+    // Hindi is pre-downloaded, others require network triggers
+    val downloadedLangs = remember { mutableStateListOf("Hindi") }
+    var downloadProgress by remember { mutableStateOf(-1f) }
+    var isDownloading by remember { mutableStateOf(false) }
 
-    val dictionary = remember {
+    val languages = listOf("Hindi", "Tamil", "Telugu", "Bengali", "Kannada", "Marathi")
+
+    val regionalDicts = remember {
         mapOf(
-            "help" to "HJÁLPAÐU MÉR",
-            "emergency" to "NEYÐARTILFELLI",
-            "where is the shelter" to "HVAR ER SKÝLIÐ",
-            "where is shelter" to "HVAR ER SKÝLIÐ",
-            "cold weather warning" to "KULDAVIÐVÖRUN",
-            "danger" to "HÆTTA",
-            "water" to "VATN",
-            "food" to "MATUR",
-            "storm" to "STORMUR",
-            "cold" to "KALT",
-            "signal" to "MERKI",
-            "route" to "LEIÐ"
+            "Hindi" to mapOf(
+                "help" to "मदद करें (Madad karein)",
+                "emergency" to "आपातकाल (Aapatkaal)",
+                "water" to "पानी (Paani)",
+                "food" to "खाना (Khana)",
+                "hotel" to "होटल (Hotel)",
+                "danger" to "खतरा (Khatra)",
+                "hospital" to "अस्पताल (Aspataal)",
+                "police" to "पुलिस (Police)"
+            ),
+            "Tamil" to mapOf(
+                "help" to "உதவி (Udhavi)",
+                "emergency" to "அவசரநிலை (Avasaranilai)",
+                "water" to "தண்ணீர் (Thanneer)",
+                "food" to "உணவு (Unavu)",
+                "hotel" to "விடுதி (Vidudhi)",
+                "danger" to "ஆபத்து (Aabathu)",
+                "hospital" to "மருத்துவமனை (Maruthuvamanai)",
+                "police" to "காவல்துறை (Kaaval-thurai)"
+            ),
+            "Telugu" to mapOf(
+                "help" to "సహాయం (Sahaayam)",
+                "emergency" to "అవసరం (Avasaram)",
+                "water" to "నీరు (Neeru)",
+                "food" to "ఆహారం (Aahaaram)",
+                "hotel" to "హోటల్ (Hotel)",
+                "danger" to "ప్రమాదం (Pramaadam)",
+                "hospital" to "ఆసుపత్రి (Aasupatri)",
+                "police" to "పోలీస్ (Police)"
+            ),
+            "Bengali" to mapOf(
+                "help" to "সাহায্য (Sahajjo)",
+                "emergency" to "জরুরি অবস্থা (Joruri obostha)",
+                "water" to "জল (Jol)",
+                "food" to "খাবার (Khabor)",
+                "hotel" to "হোটেল (Hotel)",
+                "danger" to "বিপদ (Bipod)",
+                "hospital" to "হাসপাতাল (Hashpatal)",
+                "police" to "পুলিশ (Police)"
+            ),
+            "Kannada" to mapOf(
+                "help" to "ಸಹಾಯ (Sahāya)",
+                "emergency" to "ತುರ್ತು ಪರಿಸ್ಥಿತಿ (Turtu paristhiti)",
+                "water" to "ನೀರು (Neeru)",
+                "food" to "ಆಹಾರ (Aahāra)",
+                "hotel" to "ಹೋಟೆಲ್ (Hotel)",
+                "danger" to "ಅಪಾಯ (Apāya)",
+                "hospital" to "ಆಸ್ಪತ್ರೆ (Āspatre)",
+                "police" to "ಪೊಲೀಸ್ (Police)"
+            ),
+            "Marathi" to mapOf(
+                "help" to "मदत (Madat)",
+                "emergency" to "आणीबाणी (Aanibaani)",
+                "water" to "पाणी (Paani)",
+                "food" to "जेवण (Jevan)",
+                "hotel" to "हॉटेल (Hotel)",
+                "danger" to "धोका (Dhoka)",
+                "hospital" to "रुग्णालय (Rugnaalay)",
+                "police" to "पोलीस (Police)"
+            )
         )
     }
 
     LaunchedEffect(isTranslating) {
         if (isTranslating) {
-            delay(1200)
+            delay(1000)
             val cleanQuery = textInput.lowercase().trim()
-            textOutput = dictionary[cleanQuery] ?: "DECRYPT ERROR: PHRASE NOT IN LOCAL CACHE DICTIONARY"
+            val targetDict = regionalDicts[selectedLang]
+            if (targetDict != null) {
+                textOutput = targetDict[cleanQuery] ?: "OFFLINE DICT: '${textInput}' -> translation in ${selectedLang} (Offline Match)"
+            } else {
+                textOutput = "DECRYPT ERROR: NO LANGUAGE DICTIONARY PACK"
+            }
             isTranslating = false
+        }
+    }
+
+    // Language Pack Download Simulator
+    LaunchedEffect(isDownloading) {
+        if (isDownloading) {
+            downloadProgress = 0f
+            while (downloadProgress < 1f) {
+                delay(300)
+                downloadProgress += 0.2f
+            }
+            downloadedLangs.add(selectedLang)
+            isDownloading = false
+            downloadProgress = -1f
         }
     }
 
@@ -1683,7 +2060,7 @@ fun TranslateScreen() {
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            text = "OFFLINE COGNITIVE TRANSLATOR",
+            text = "REGIONAL OFFLINE TRANSLATOR",
             color = MaterialTheme.colorScheme.primary,
             fontFamily = FontFamily.Monospace,
             fontSize = 12.sp,
@@ -1691,7 +2068,114 @@ fun TranslateScreen() {
             letterSpacing = 1.sp
         )
 
-        // Translation Grid
+        // Language Selector and Download status
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surfaceContainer, RoundedCornerShape(8.dp))
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = "TARGET INDIAN LANGUAGE",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold
+            )
+            
+            // Horizontal row of languages
+            Row(
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                languages.forEach { lang ->
+                    val isDownloaded = downloadedLangs.contains(lang)
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(
+                                if (selectedLang == lang) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                                else MaterialTheme.colorScheme.surfaceVariant
+                            )
+                            .border(
+                                1.dp,
+                                if (selectedLang == lang) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                RoundedCornerShape(6.dp)
+                            )
+                            .clickable { selectedLang = lang }
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(text = lang, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                            if (isDownloaded) {
+                                Text("✓", color = Color(0xFF4BE277), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            } else {
+                                Text("⬇", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
+                            }
+                        }
+                    }
+                }
+            }
+
+            val isSelectedPackDownloaded = downloadedLangs.contains(selectedLang)
+
+            // Download trigger card if not downloaded
+            if (!isSelectedPackDownloaded) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "${selectedLang} Pack Not Downloaded",
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Download model to translate offline whenever you get internet.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 10.sp
+                        )
+                    }
+
+                    if (downloadProgress >= 0f) {
+                        LinearProgressIndicator(
+                            progress = { downloadProgress },
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.width(80.dp).height(4.dp)
+                        )
+                    } else {
+                        Button(
+                            onClick = { isDownloading = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
+                            shape = RoundedCornerShape(4.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                            modifier = Modifier.height(32.dp)
+                        ) {
+                            Text("DOWNLOAD", fontSize = 10.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            } else {
+                Text(
+                    text = "✓ Offline pack active for ${selectedLang} (Local Database Ready)",
+                    color = Color(0xFF4BE277),
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+        }
+
+        // Translation Inputs/Outputs
+        val isLangReady = downloadedLangs.contains(selectedLang)
+
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -1701,11 +2185,7 @@ fun TranslateScreen() {
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.surfaceContainer, RoundedCornerShape(8.dp))
-                    .border(
-                        1.dp,
-                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-                        RoundedCornerShape(8.dp)
-                    )
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
                     .padding(12.dp)
             ) {
                 Text(
@@ -1724,14 +2204,12 @@ fun TranslateScreen() {
                         fontSize = 14.sp,
                         fontFamily = FontFamily.Monospace
                     ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(60.dp),
+                    modifier = Modifier.fillMaxWidth().height(60.dp),
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary)
                 )
                 if (textInput.isEmpty()) {
                     Text(
-                        text = "Type exploration phrases (e.g. 'help', 'storm', 'where is shelter')...",
+                        text = "Type phrases (e.g. 'help', 'emergency', 'water', 'hospital')...",
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                         fontSize = 12.sp,
                         modifier = Modifier.offset(y = (-60).dp)
@@ -1742,14 +2220,13 @@ fun TranslateScreen() {
             // Translate Action Button
             Button(
                 onClick = { isTranslating = true },
-                enabled = textInput.isNotEmpty() && !isTranslating,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
+                enabled = textInput.isNotEmpty() && !isTranslating && isLangReady,
+                modifier = Modifier.fillMaxWidth().height(48.dp),
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                 )
             ) {
                 if (isTranslating) {
@@ -1760,7 +2237,7 @@ fun TranslateScreen() {
                     )
                 } else {
                     Text(
-                        text = "RUN TRANSLATION MATRIX",
+                        text = if (isLangReady) "RUN TRANSLATION MATRIX" else "DOWNLOAD REGIONAL PACK TO RUN",
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp
@@ -1776,15 +2253,11 @@ fun TranslateScreen() {
                         MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.4f),
                         RoundedCornerShape(8.dp)
                     )
-                    .border(
-                        1.dp,
-                        MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-                        RoundedCornerShape(8.dp)
-                    )
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
                     .padding(12.dp)
             ) {
                 Text(
-                    text = "TRANSLATED VECTOR OUTPUT (ICELANDIC)",
+                    text = "TRANSLATED REGIONAL OUTPUT (${selectedLang.uppercase()})",
                     color = MaterialTheme.colorScheme.primary,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 9.sp,
@@ -1796,9 +2269,7 @@ fun TranslateScreen() {
                     color = if (textOutput.startsWith("DECRYPT ERROR")) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 14.sp,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(60.dp)
+                    modifier = Modifier.fillMaxWidth().height(60.dp)
                 )
             }
         }
@@ -1809,7 +2280,11 @@ fun TranslateScreen() {
 // SCREEN 4: EXPLORER PROFILE SCREEN
 // ----------------------------------------------------
 @Composable
-fun ProfileScreen() {
+fun ProfileScreen(
+    userLocationName: String,
+    coordinates: String
+) {
+    val context = LocalContext.current
     var isTetherOn by remember { mutableStateOf(false) }
     var isBeaconOn by remember { mutableStateOf(false) }
 
@@ -1821,7 +2296,7 @@ fun ProfileScreen() {
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            text = "EXPLORER PROFILE CONFIG",
+            text = "TRAVELER PROFILE CONFIG",
             color = MaterialTheme.colorScheme.primary,
             fontFamily = FontFamily.Monospace,
             fontSize = 12.sp,
@@ -1859,20 +2334,20 @@ fun ProfileScreen() {
 
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text = "EXPLORER_01",
+                    text = "TRAVELER_01",
                     color = MaterialTheme.colorScheme.onSurface,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "ID: EXP-2026-NEXUS",
+                    text = "ID: BUDDY-2026-INDIA",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 11.sp
                 )
                 Text(
-                    text = "ASSIGNMENT: SECTOR 7-B (ICELAND)",
+                    text = "ASSIGNMENT: HIMALAYAN EXPEDITION (INDIA)",
                     color = MaterialTheme.colorScheme.primary,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 10.sp,
@@ -1940,7 +2415,7 @@ fun ProfileScreen() {
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Auto-triggers rescue signal under -20°C",
+                        text = "Auto-triggers rescue signal under extreme cold",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 11.sp
                     )
@@ -1953,6 +2428,53 @@ fun ProfileScreen() {
                         checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
                     )
                 )
+            }
+        }
+
+        // Support and Services Card
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surfaceContainer, RoundedCornerShape(8.dp))
+                .border(
+                    width = 0.5.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                    shape = RoundedCornerShape(8.dp)
+                )
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = "SUPPORT & SERVICES",
+                color = MaterialTheme.colorScheme.primary,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "Need help or want to provide feedback? Reach out to our dedicated support team over email directly from your device.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 11.sp,
+                lineHeight = 16.sp
+            )
+            Button(
+                onClick = {
+                    val intent = Intent(Intent.ACTION_SENDTO).apply {
+                        data = Uri.parse("mailto:support@travelbuddy.in")
+                        putExtra(Intent.EXTRA_SUBJECT, "[Travel Buddy Support] Feedback from Traveler_01")
+                        putExtra(Intent.EXTRA_TEXT, "Device Details: Android\nCoordinates: ${coordinates}\nActive Location: ${userLocationName}\n\nDear Support Team,\n\n")
+                    }
+                    try {
+                        context.startActivity(Intent.createChooser(intent, "Send Email"))
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "No email client found.", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().height(40.dp),
+                shape = RoundedCornerShape(4.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            ) {
+                Text("REACH OUT VIA EMAIL", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 10.sp)
             }
         }
 
@@ -1978,7 +2500,7 @@ fun ProfileScreen() {
             )
 
             Text(
-                text = "[14:24:02] Initialised vector map sync...\n[15:10:45] Warning: Temperature dropped to -12°C\n[16:42:30] Compass bearing locks established on node STATION_SIGMA_04\n[18:02:11] SATCOM signal critical - standing by for manual override override.",
+                text = "[14:24:02] Initialised vector map sync...\n[15:10:45] Warning: Temperature dropped to 10°C\n[16:42:30] Compass bearing locks established on local signal nodes\n[18:02:11] SATCOM signal stable - standing by for manual check.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontFamily = FontFamily.Monospace,
                 fontSize = 11.sp,
@@ -1997,6 +2519,10 @@ fun EmergencyActionDialog(
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
+    val context = LocalContext.current
+    val coordinates = "34.1526° N, 77.5771° E"
+    val distressMessage = "EMERGENCY: I need assistance immediately. My coordinates are: $coordinates."
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -2006,7 +2532,7 @@ fun EmergencyActionDialog(
             ) {
                 EmergencyIcon(color = MaterialTheme.colorScheme.error, modifier = Modifier.size(24.dp))
                 Text(
-                    text = "EMERGENCY BROADCAST",
+                    text = "SOS EMERGENCY CONSOLE",
                     color = MaterialTheme.colorScheme.error,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
@@ -2015,11 +2541,111 @@ fun EmergencyActionDialog(
             }
         },
         text = {
-            Text(
-                text = "WARNING: SV-9 manual override requested. This action broadcasts high-frequency location signals to all rescue satellites in Sector 7-B. Continue broadcast?",
-                color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 13.sp
-            )
+            Column(
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "distress message payload will automatically include coordinates: $coordinates",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+
+                // Direct Calls section
+                Text("DIRECT HELPLINE CALLS (INDIA):", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:112"))
+                            context.startActivity(intent)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE24B4B)),
+                        modifier = Modifier.weight(1f).height(38.dp),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text("POLICE (112)", fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                    }
+                    Button(
+                        onClick = {
+                            val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:102"))
+                            context.startActivity(intent)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE24B4B)),
+                        modifier = Modifier.weight(1f).height(38.dp),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text("HOSPITAL (102)", fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                    }
+                }
+
+                Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+                // SOS Message Dispatch Options
+                Text("SEND COORDINATES DISTRESS MESSAGE:", fontWeight = FontWeight.Bold, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface)
+                
+                // WhatsApp option
+                Button(
+                    onClick = {
+                        val uri = Uri.parse("https://api.whatsapp.com/send?text=" + Uri.encode(distressMessage))
+                        val intent = Intent(Intent.ACTION_VIEW, uri)
+                        try {
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "WhatsApp is not installed.", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF25D366)),
+                    modifier = Modifier.fillMaxWidth().height(38.dp),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text("DISPATCH OVER WHATSAPP", fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, color = Color.White)
+                }
+
+                // SMS option
+                Button(
+                    onClick = {
+                        val intent = Intent(Intent.ACTION_SENDTO).apply {
+                            data = Uri.parse("smsto:")
+                            putExtra("sms_body", distressMessage)
+                        }
+                        try {
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Cannot launch SMS app.", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
+                    modifier = Modifier.fillMaxWidth().height(38.dp),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text("DISPATCH OVER NATIVE SMS", fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                }
+
+                // Email SMTP option
+                Button(
+                    onClick = {
+                        val intent = Intent(Intent.ACTION_SENDTO).apply {
+                            data = Uri.parse("mailto:")
+                            putExtra(Intent.EXTRA_SUBJECT, "URGENT SOS TRAVEL ASSISTANCE REQUIRED")
+                            putExtra(Intent.EXTRA_TEXT, distressMessage)
+                        }
+                        try {
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Cannot launch email client.", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    modifier = Modifier.fillMaxWidth().height(38.dp),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text("DISPATCH OVER SMTP MAIL", fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                }
+            }
         },
         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
         confirmButton = {
@@ -2028,10 +2654,10 @@ fun EmergencyActionDialog(
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
             ) {
                 Text(
-                    text = "CONFIRM BROADCAST",
+                    text = "BROADCAST BEACON",
                     color = MaterialTheme.colorScheme.onError,
                     fontFamily = FontFamily.Monospace,
-                    fontSize = 11.sp,
+                    fontSize = 10.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -2039,10 +2665,10 @@ fun EmergencyActionDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(
-                    text = "CANCEL",
+                    text = "CLOSE",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontFamily = FontFamily.Monospace,
-                    fontSize = 11.sp
+                    fontSize = 10.sp
                 )
             }
         }
