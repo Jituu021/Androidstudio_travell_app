@@ -40,6 +40,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.zIndex
 import androidx.compose.foundation.gestures.detectDragGestures
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -153,6 +154,7 @@ fun NexusGuideScreen(
 ) {
     val context = LocalContext.current
     var activeTab by remember { mutableStateOf(Tab.HOME) }
+    var isDrawerOpen by remember { mutableStateOf(false) }
     var userLat by remember { mutableStateOf(34.1526) }
     var userLon by remember { mutableStateOf(77.5771) }
     var userLocationName by remember { mutableStateOf("Leh, Ladakh") }
@@ -231,7 +233,11 @@ fun NexusGuideScreen(
             modifier = Modifier.fillMaxSize()
         ) {
             // TopAppBar
-            NexusTopAppBar(activeTab = activeTab)
+            NexusTopAppBar(
+                activeTab = activeTab,
+                onMenuClick = { isDrawerOpen = true },
+                userSession = userSession
+            )
 
             // Main Content Area based on Selected Tab
             Box(
@@ -285,6 +291,182 @@ fun NexusGuideScreen(
             )
         }
 
+        // Custom Navigation Drawer Overlay
+        if (isDrawerOpen) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.5f))
+                    .clickable { isDrawerOpen = false }
+                    .zIndex(10f)
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .width(280.dp)
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                    .border(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                        shape = RoundedCornerShape(0.dp)
+                    )
+                    .clickable(enabled = false) {}
+                    .zIndex(11f)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        // Drawer Header
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(CircleShape)
+                                    .border(1.5.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                            ) {
+                                Image(
+                                    painter = painterResource(id = R.drawable.avatar_explorer),
+                                    contentDescription = "Explorer Profile",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                            Column {
+                                Text(
+                                    text = userSession.username.uppercase(),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                                Text(
+                                    text = "ROLE: " + (if (userSession.isAdmin) "ROOT ADMIN" else "EXPLORER"),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontSize = 10.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        // Divider Line
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(1.dp)
+                                .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        )
+
+                        Text(
+                            text = "CONSOLE NAVIGATION",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 9.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        // Navigation Links
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            DrawerNavItem(
+                                icon = "🏠",
+                                label = "Home Console",
+                                isActive = activeTab == Tab.HOME,
+                                onClick = {
+                                    activeTab = Tab.HOME
+                                    isDrawerOpen = false
+                                }
+                            )
+                            DrawerNavItem(
+                                icon = "🗺",
+                                label = "Offline Maps",
+                                isActive = activeTab == Tab.MAPS,
+                                onClick = {
+                                    activeTab = Tab.MAPS
+                                    isDrawerOpen = false
+                                }
+                            )
+                            DrawerNavItem(
+                                icon = "🗣",
+                                label = "AI Translator",
+                                isActive = activeTab == Tab.TRANSLATE,
+                                onClick = {
+                                    activeTab = Tab.TRANSLATE
+                                    isDrawerOpen = false
+                                }
+                            )
+                            DrawerNavItem(
+                                icon = "👤",
+                                label = "Profile Config",
+                                isActive = activeTab == Tab.PROFILE,
+                                onClick = {
+                                    activeTab = Tab.PROFILE
+                                    isDrawerOpen = false
+                                }
+                            )
+                        }
+
+                        // Divider Line
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(1.dp)
+                                .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        )
+
+                        Text(
+                            text = "TELEMETRY UTILITIES",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 9.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            DrawerActionItem(
+                                icon = "🎯",
+                                label = "Sync GPS Location",
+                                onClick = {
+                                    isDrawerOpen = false
+                                    locationLauncher.launch(
+                                        arrayOf(
+                                            Manifest.permission.ACCESS_FINE_LOCATION,
+                                            Manifest.permission.ACCESS_COARSE_LOCATION
+                                        )
+                                    )
+                                }
+                            )
+                            DrawerActionItem(
+                                icon = "🚨",
+                                label = "Trigger SOS Emergency",
+                                onClick = {
+                                    isDrawerOpen = false
+                                    showEmergencyDialog = true
+                                }
+                            )
+                        }
+                    }
+
+                    // Log out button
+                    Button(
+                        onClick = onLogOut,
+                        modifier = Modifier.fillMaxWidth().height(40.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error.copy(alpha = 0.8f)),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text("LOG OUT SECURE SESSION", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 9.sp)
+                    }
+                }
+            }
+        }
+
         // Emergency Dialog overlay
         if (showEmergencyDialog) {
             EmergencyActionDialog(
@@ -310,7 +492,11 @@ fun NexusGuideScreen(
 // ----------------------------------------------------
 
 @Composable
-fun NexusTopAppBar(activeTab: Tab) {
+fun NexusTopAppBar(
+    activeTab: Tab,
+    onMenuClick: () -> Unit,
+    userSession: User
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -321,14 +507,29 @@ fun NexusTopAppBar(activeTab: Tab) {
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
                 shape = RoundedCornerShape(bottomStart = 0.dp, bottomEnd = 0.dp)
             )
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .clickable(onClick = onMenuClick),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "☰",
+                    color = MaterialTheme.colorScheme.primary,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Spacer(modifier = Modifier.width(2.dp))
             CellularSignalIcon(
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(18.dp)
@@ -555,74 +756,6 @@ fun HomeScreen(
             onClick = onRequestLocation
         )
 
-        // Action 1: Full-width scan image button
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(200.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .border(
-                    1.dp,
-                    if (isScanning) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
-                    RoundedCornerShape(12.dp)
-                )
-                .background(MaterialTheme.colorScheme.surfaceContainer)
-                .clickable { isScanning = true }
-        ) {
-            Image(
-                painter = painterResource(id = R.drawable.thermal_map),
-                contentDescription = "Thermal Scan Map",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.2f))
-            )
-
-            // High-tech label overlays
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(8.dp)
-                    .background(MaterialTheme.colorScheme.background.copy(alpha = 0.7f), RoundedCornerShape(2.dp))
-                    .padding(horizontal = 6.dp, vertical = 3.dp)
-            ) {
-                Text(
-                    text = if (isScanning) "SCANNING RADAR..." else "REGIONAL_RADAR_09",
-                    color = MaterialTheme.colorScheme.primary,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            // Scanning Line Sweeping Animation
-            if (isScanning) {
-                val infiniteTransition = rememberInfiniteTransition()
-                val sweepOffset by infiniteTransition.animateFloat(
-                    initialValue = 0f,
-                    targetValue = 1f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(1500, easing = LinearEasing),
-                        repeatMode = RepeatMode.Reverse
-                    )
-                )
-
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    val y = size.height * sweepOffset
-                    drawLine(
-                        color = Color(0xFF4BE277),
-                        start = Offset(0f, y),
-                        end = Offset(size.width, y),
-                        strokeWidth = 3.dp.toPx(),
-                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
-                    )
-                }
-            }
-        }
-
         // Action 2: Open Offline Map (Full width)
         FullWidthActionButton(
             icon = { DownloadOfflineIcon(color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(28.dp)) },
@@ -776,47 +909,24 @@ fun HeroCard(userLocationName: String, coordinates: String) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(260.dp)
+            .height(180.dp)
             .clip(RoundedCornerShape(12.dp))
             .border(
                 1.dp,
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f),
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
                 RoundedCornerShape(12.dp)
             )
+            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+            .padding(16.dp)
     ) {
-        // Scenery background
-        Image(
-            painter = painterResource(id = R.drawable.iceland_highlands),
-            contentDescription = "Highlands Scenery",
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
-        )
-
-        // Gradient fade overlay
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            MaterialTheme.colorScheme.background.copy(alpha = 0.2f),
-                            MaterialTheme.colorScheme.background.copy(alpha = 0.95f)
-                        ),
-                        startY = 100f
-                    )
-                )
-        )
-
-        // Locked status widget overlay top-right
+        // Active status widget top-right
         Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(12.dp)
-                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f), RoundedCornerShape(4.dp))
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
                 .border(
                     width = 0.5.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                    color = MaterialTheme.colorScheme.primary,
                     shape = RoundedCornerShape(4.dp)
                 )
                 .padding(horizontal = 8.dp, vertical = 4.dp)
@@ -825,7 +935,6 @@ fun HeroCard(userLocationName: String, coordinates: String) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                // Green pulse dot
                 val infiniteTransition = rememberInfiniteTransition()
                 val pulseOpacity by infiniteTransition.animateFloat(
                     initialValue = 0.3f,
@@ -843,7 +952,7 @@ fun HeroCard(userLocationName: String, coordinates: String) {
                 )
                 Text(
                     text = "ACTIVE",
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = MaterialTheme.colorScheme.primary,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold
@@ -851,50 +960,56 @@ fun HeroCard(userLocationName: String, coordinates: String) {
             }
         }
 
-        // Details bottom left
+        // Details content taking up the card
         Column(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(6.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.outline)
-                )
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text = "OFFLINE MODE READY",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    text = "TRAVEL BUDDY CONTROL CONSOLE",
+                    color = MaterialTheme.colorScheme.primary,
                     fontFamily = FontFamily.Monospace,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.5.sp
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold
                 )
+                
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF4BE277))
+                    )
+                    Text(
+                        text = "OFFLINE MODE VERIFIED",
+                        color = Color(0xFF4BE277),
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
-            // Coordinates
-            Text(
-                text = coordinates,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold,
-                fontSize = 20.sp
-            )
-
-            // Description
-            Text(
-                text = "${userLocationName.uppercase()} - HIMALAYAN EXPEDITION\nLocal region telemetry synchronized.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 11.sp,
-                fontFamily = FontFamily.SansSerif,
-                lineHeight = 16.sp
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = coordinates,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp
+                )
+                Text(
+                    text = "${userLocationName.uppercase()} - HIMALAYAN EXPEDITION\nLocal region telemetry synchronized.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.SansSerif,
+                    lineHeight = 16.sp
+                )
+            }
         }
     }
 }
@@ -2785,20 +2900,78 @@ fun AudioWaveformAnimation(isPlaying: Boolean) {
 // Smart Offline Sentence Grammatical Translation Parser helper
 fun parseAndTranslate(input: String, lang: String, dict: Map<String, String>): String {
     val clean = input.lowercase().trim().removeSuffix("?").removeSuffix(".")
-    val direct = dict[clean]
-    if (direct != null) return direct
+    
+    // Setup localized maps for common words dynamically!
+    val hindiMap = mapOf(
+        "hi" to "नमस्ते", "hello" to "नमस्ते", "there" to "वहाँ", "in" to "में", "im" to "मैं हूँ", "i'm" to "मैं हूँ",
+        "i" to "मैं", "am" to "हूँ", "my" to "मेरा", "name" to "नाम", "is" to "है", "are" to "हैं", "you" to "आप",
+        "your" to "आपका", "water" to "पानी", "food" to "खाना", "help" to "मदद", "emergency" to "आपातकाल",
+        "danger" to "खतरा", "hospital" to "अस्पताल", "police" to "पुलिस", "hotel" to "होटल", "to" to "को",
+        "where" to "कहाँ", "what" to "क्या", "who" to "कौन", "how" to "कैसे"
+    )
+    val tamilMap = mapOf(
+        "hi" to "வணக்கம்", "hello" to "வணக்கம்", "there" to "அங்கே", "in" to "இல்", "im" to "நான்", "i'm" to "நான்",
+        "i" to "நான்", "am" to "இருக்கிறேன்", "my" to "எனது", "name" to "பெயர்", "is" to "ஆகும்", "are" to "உள்ளனர்", "you" to "நீ",
+        "your" to "உன்னுடைய", "water" to "தண்ணீர்", "food" to "உணவு", "help" to "உதவி", "emergency" to "அவசரநிலை",
+        "danger" to "ஆபத்து", "hospital" to "மருத்துவமனை", "police" to "காவல்துறை", "hotel" to "விடுதி", "to" to "க்கு",
+        "where" to "எங்கே", "what" to "என்ன", "who" to "யார்", "how" to "எப்படி"
+    )
+    val teluguMap = mapOf(
+        "hi" to "నమస్కారం", "hello" to "నమస్కారం", "there" to "అక్కడ", "in" to "లో", "im" to "నేను", "i'm" to "నేను",
+        "i" to "నేను", "am" to "ఉన్నాను", "my" to "నా", "name" to "పేరు", "is" to "ఉంది", "are" to "ఉన్నారు", "you" to "నువ్వు",
+        "your" to "నీ", "water" to "నీరు", "food" to "ఆహారం", "help" to "సహాయం", "emergency" to "అవసరం",
+        "danger" to "ప్రమాదం", "hospital" to "ఆసుపత్రి", "police" to "పోలీస్", "hotel" to "హోటల్", "to" to "కు",
+        "where" to "ఎక్కడ", "what" to "ఏమిటి", "who" to "ఎవరు", "how" to "ఎలా"
+    )
+    val bengaliMap = mapOf(
+        "hi" to "হ্যালো", "hello" to "নমস্কার", "there" to "সেখানে", "in" to "মধ্যে", "im" to "আমি", "i'm" to "আমি",
+        "i" to "আমি", "am" to "আছি", "my" to "আমার", "name" to "নাম", "is" to "হয়", "are" to "আছেন", "you" to "তুমি",
+        "your" to "তোমার", "water" to "জল", "food" to "খাবার", "help" to "সাহায্য", "emergency" to "জরুরি অবস্থা",
+        "danger" to "বিপদ", "hospital" to "হাসপাতাল", "police" to "পুলিশ", "hotel" to "হোটেল", "to" to "কে",
+        "where" to "কোথায়", "what" to "কি", "who" to "কে", "how" to "কেমন"
+    )
+    val kannadaMap = mapOf(
+        "hi" to "ನಮಸ್ಕಾರ", "hello" to "ನಮಸ್ಕಾರ", "there" to "ಅಲ್ಲಿ", "in" to "ನಲ್ಲಿ", "im" to "ನಾನು", "i'm" to "ನಾನು",
+        "i" to "ನಾನು", "am" to "ಇದ್ದೇನೆ", "my" to "ನನ್ನ", "name" to "ಹೆಸರು", "is" to "ಇದೆ", "are" to "ಇದ್ದಾರೆ", "you" to "ನೀನು",
+        "your" to "ನಿಮ್ಮ", "water" to "ನೀರು", "food" to "ಆಹಾರ", "help" to "ಸಹಾಯ", "emergency" to "ತುರ್ತು ಪರಿಸ್ಥಿತಿ",
+        "danger" to "ಅಪಾಯ", "hospital" to "ಆಸ್ಪತ್ರೆ", "police" to "ಪೊಲೀಸ್", "hotel" to "ಹೋಟೆಲ್", "to" to "ಗೆ",
+        "where" to "ಎಲ್ಲಿದೆ", "what" to "ಏನು", "who" to "ಯಾರು", "how" to "ಹೇಗೆ"
+    )
+    val marathiMap = mapOf(
+        "hi" to "नमस्कार", "hello" to "नमस्कार", "there" to "तेथे", "in" to "मध्ये", "im" to "मी आहे", "i'm" to "मी आहे",
+        "i" to "मी", "am" to "आहे", "my" to "माझे", "name" to "नाव", "is" to "आहे", "are" to "आहेत", "you" to "तू",
+        "your" to "तुझे", "water" to "पाणी", "food" to "जेवण", "help" to "मदत", "emergency" to "आणीबाणी",
+        "danger" to "धोका", "hospital" to "रुग्णालय", "police" to "पोलीस", "hotel" to "हॉटेल", "to" to "ला",
+        "where" to "कुठे", "what" to "काय", "who" to "कोण", "how" to "कसे"
+    )
 
-    // Grammatical template structures matching
+    val currentLangMap = when(lang) {
+        "Hindi" -> hindiMap
+        "Tamil" -> tamilMap
+        "Telugu" -> teluguMap
+        "Bengali" -> bengaliMap
+        "Kannada" -> kannadaMap
+        "Marathi" -> marathiMap
+        else -> emptyMap()
+    }
+
+    // Direct match check in full map
+    val directMatch = currentLangMap[clean]
+    if (directMatch != null) return directMatch
+
+    // Grammar patterns
     // 1. Where is X and Y?
     if (clean.startsWith("where is ") && clean.contains(" and ")) {
         val parts = clean.removePrefix("where is ").split(" and ")
         if (parts.size == 2) {
-            val w1 = dict[parts[0].trim()] ?: parts[0].trim()
-            val w2 = dict[parts[1].trim()] ?: parts[1].trim()
+            val p1 = parts[0].trim()
+            val p2 = parts[1].trim()
+            val w1 = currentLangMap[p1] ?: transliterateToLang(p1, lang)
+            val w2 = currentLangMap[p2] ?: transliterateToLang(p2, lang)
             return when(lang) {
                 "Hindi" -> "$w1 और $w2 कहाँ है?"
                 "Tamil" -> "$w1 மற்றும் $w2 எங்கே?"
-                "Telugu" -> "$w1 మరియు $w2 எక్కడ உள்ளது?"
+                "Telugu" -> "$w1 మరియు $w2 ఎక్కడ ఉంది?"
                 "Bengali" -> "$w1 এবং $w2 কোথায়?"
                 "Kannada" -> "$w1 ಮತ್ತು $w2 ಎಲ್ಲಿದೆ?"
                 "Marathi" -> "$w1 आणि $w2 कुठे आहे?"
@@ -2809,21 +2982,35 @@ fun parseAndTranslate(input: String, lang: String, dict: Map<String, String>): S
     // 2. Where is X?
     if (clean.startsWith("where is ")) {
         val X = clean.removePrefix("where is ").trim()
-        val transX = dict[X] ?: X
+        val transX = currentLangMap[X] ?: transliterateToLang(X, lang)
         return when(lang) {
             "Hindi" -> "$transX कहाँ है?"
             "Tamil" -> "$transX எங்கே?"
-            "Telugu" -> "$transX எక్కడ ఉంది?"
+            "Telugu" -> "$transX ఎక్కడ ఉంది?"
             "Bengali" -> "$transX কোথায়?"
             "Kannada" -> "$transX ಎಲ್ಲಿದೆ?"
             "Marathi" -> "$transX कुठे आहे?"
             else -> "Where is $transX?"
         }
     }
-    // 3. I need X
+    // 3. My name is X
+    if (clean.startsWith("my name is ")) {
+        val X = clean.removePrefix("my name is ").trim()
+        val transX = currentLangMap[X] ?: transliterateToLang(X, lang)
+        return when(lang) {
+            "Hindi" -> "मेरा नाम $transX है"
+            "Tamil" -> "என் பெயர் $transX"
+            "Telugu" -> "నా పేరు $transX"
+            "Bengali" -> "আমার নাম $transX"
+            "Kannada" -> "ನನ್ನ ಹೆಸರು $transX"
+            "Marathi" -> "माझे नाव $transX आहे"
+            else -> "My name is $transX"
+        }
+    }
+    // 4. I need X
     if (clean.startsWith("i need ")) {
         val X = clean.removePrefix("i need ").trim()
-        val transX = dict[X] ?: X
+        val transX = currentLangMap[X] ?: transliterateToLang(X, lang)
         return when(lang) {
             "Hindi" -> "मुझे $transX चाहिए"
             "Tamil" -> "எனக்கு $transX வேண்டும்"
@@ -2835,10 +3022,174 @@ fun parseAndTranslate(input: String, lang: String, dict: Map<String, String>): S
         }
     }
 
-    // Fallback parser word-by-word
-    val words = clean.split(" ", ",", ".")
-    val translatedWords = words.map { w -> dict[w] ?: w }
+    // Fallback sentence translation word-by-word
+    val words = clean.split("\\s+".toRegex())
+    val translatedWords = words.map { w ->
+        val cleanedWord = w.replace(Regex("[^a-zA-Z']"), "")
+        currentLangMap[cleanedWord] ?: transliterateToLang(cleanedWord, lang)
+    }
     return translatedWords.joinToString(" ")
+}
+
+fun transliterateToLang(word: String, lang: String): String {
+    val cleaned = word.lowercase().trim()
+    if (cleaned.isEmpty()) return ""
+
+    // Devanagari core map (Hindi/Marathi)
+    val consonantsDeva = mapOf(
+        "kh" to "ख", "gh" to "घ", "ch" to "च", "jh" to "झ", "th" to "थ", "dh" to "ध", "ph" to "फ", "bh" to "भ", "sh" to "श",
+        "k" to "क", "g" to "ग", "j" to "ज", "t" to "त", "d" to "द", "n" to "न", "p" to "प", "b" to "ब", "m" to "म",
+        "y" to "य", "r" to "र", "l" to "ल", "v" to "व", "s" to "स", "h" to "ह"
+    )
+    val vowelsDeva = mapOf(
+        "aa" to "ा", "ee" to "ी", "oo" to "ू", "ai" to "ै", "au" to "ौ",
+        "a" to "", "e" to "े", "i" to "ि", "o" to "ो", "u" to "ु"
+    )
+    val initVowelsDeva = mapOf("a" to "अ", "e" to "ए", "i" to "इ", "o" to "ओ", "u" to "उ")
+
+    // Tamil map
+    val consonantsTamil = mapOf(
+        "ch" to "ச", "j" to "ஜ", "sh" to "ஸ", "h" to "ஹ",
+        "k" to "க", "g" to "க", "t" to "த", "d" to "த", "n" to "ந", "p" to "ப", "b" to "ப", "m" to "ம",
+        "y" to "ய", "r" to "ர", "l" to "ல", "v" to "வ", "s" to "ஸ"
+    )
+    val vowelsTamil = mapOf(
+        "aa" to "ா", "ee" to "ீ", "oo" to "ூ",
+        "a" to "", "e" to "ெ", "i" to "ி", "o" to "ொ", "u" to "ு"
+    )
+    val initVowelsTamil = mapOf("a" to "அ", "e" to "எ", "i" to "இ", "o" to "ஒ", "u" to "உ")
+
+    // Telugu map
+    val consonantsTelugu = mapOf(
+        "kh" to "ఖ", "gh" to "ఘ", "ch" to "చ", "jh" to "ఝ", "th" to "థ", "dh" to "ధ", "ph" to "ఫ", "bh" to "భ", "sh" to "శ",
+        "k" to "క", "g" to "గ", "j" to "జ", "t" to "త", "d" to "ద", "n" to "న", "p" to "ప", "b" to "బ", "m" to "మ",
+        "y" to "య", "r" to "ర", "l" to "ಲ", "v" to "వ", "s" to "స", "h" to "హ"
+    )
+    val vowelsTelugu = mapOf(
+        "aa" to "ా", "ee" to "ీ", "oo" to "ూ",
+        "a" to "", "e" to "ె", "i" to "і", "o" to "ొ", "u" to "ు"
+    )
+    val initVowelsTelugu = mapOf("a" to "అ", "e" to "ఎ", "i" to "ఇ", "o" to "ఒ", "u" to "ఉ")
+
+    // Bengali map
+    val consonantsBengali = mapOf(
+        "kh" to "খ", "gh" to "ঘ", "ch" to "চ", "jh" to "ঝ", "th" to "থ", "dh" to "ধ", "ph" to "ফ", "bh" to "ভ", "sh" to "শ",
+        "k" to "ক", "g" to "গ", "j" to "জ", "t" to "ত", "d" to "দ", "n" to "ন", "p" to "প", "b" to "ব", "m" to "ম",
+        "y" to "য", "r" to "র", "l" to "ল", "v" to "ভ", "s" to "শ", "h" to "হ"
+    )
+    val vowelsBengali = mapOf(
+        "aa" to "া", "ee" to "ী", "oo" to "ূ",
+        "a" to "", "e" to "ে", "i" to "ি", "o" to "ো", "u" to "ু"
+    )
+    val initVowelsBengali = mapOf("a" to "অ", "e" to "এ", "i" to "ই", "o" to "ও", "u" to "উ")
+
+    // Kannada map
+    val consonantsKannada = mapOf(
+        "kh" to "ಖ", "gh" to "ಘ", "ch" to "ಚ", "jh" to "ಝ", "th" to "ಥ", "dh" to "ಧ", "ph" to "ಫ", "bh" to "ಭ", "sh" to "ಶ",
+        "k" to "ಕ", "g" to "ಗ", "j" to "ಜ", "t" to "ತ", "d" to "ದ", "n" to "ನ", "p" to "ಪ", "b" to "ಬ", "m" to "ಮ",
+        "y" to "ಯ", "r" to "ರ", "l" to "ಲ", "v" to "ವ", "s" to "ಸ", "h" to "ಹ"
+    )
+    val vowelsKannada = mapOf(
+        "aa" to "ಾ", "ee" to "ೀ", "oo" to "ೂ",
+        "a" to "", "e" to "ೆ", "i" to "ಿ", "o" to "ೊ", "u" to "ು"
+    )
+    val initVowelsKannada = mapOf("a" to "ಅ", "e" to "ಎ", "i" to "ಇ", "o" to "ಒ", "u" to "ಉ")
+
+    val consonants = when(lang) {
+        "Tamil" -> consonantsTamil
+        "Telugu" -> consonantsTelugu
+        "Bengali" -> consonantsBengali
+        "Kannada" -> consonantsKannada
+        else -> consonantsDeva
+    }
+
+    val vowels = when(lang) {
+        "Tamil" -> vowelsTamil
+        "Telugu" -> vowelsTelugu
+        "Bengali" -> vowelsBengali
+        "Kannada" -> vowelsKannada
+        else -> vowelsDeva
+    }
+
+    val initVowels = when(lang) {
+        "Tamil" -> initVowelsTamil
+        "Telugu" -> initVowelsTelugu
+        "Bengali" -> initVowelsBengali
+        "Kannada" -> initVowelsKannada
+        else -> initVowelsDeva
+    }
+
+    // Specific manual overrides
+    if (cleaned == "jitendra") {
+        return when(lang) {
+            "Hindi" -> "जितेन्द्र"
+            "Marathi" -> "जितेंद्र"
+            "Tamil" -> "ஜிதேந்திரா"
+            "Telugu" -> "జితేంద్ర"
+            "Bengali" -> "জিতেন্দ্র"
+            "Kannada" -> "ಜಿತೇಂದ್ರ"
+            else -> "Jitendra"
+        }
+    }
+    if (cleaned == "hi") {
+        return when(lang) {
+            "Hindi" -> "नमस्ते"
+            "Tamil" -> "வணக்கம்"
+            "Telugu" -> "నమస్కారం"
+            "Bengali" -> "হ্যালো"
+            "Kannada" -> "ನಮಸ್ಕಾರ"
+            "Marathi" -> "नमस्कार"
+            else -> "Hi"
+        }
+    }
+
+    var out = ""
+    var i = 0
+    while (i < cleaned.length) {
+        if (i + 3 <= cleaned.length) {
+            val sub3 = cleaned.substring(i, i + 3)
+            if (sub3 == "ndr") {
+                out += when(lang) {
+                    "Tamil" -> "ந்திர"
+                    "Telugu" -> "ంద్ర"
+                    "Bengali" -> "ন্দ্র"
+                    "Kannada" -> "ಂದ್ರ"
+                    else -> "न्द्र"
+                }
+                i += 3
+                continue
+            }
+        }
+        if (i + 2 <= cleaned.length) {
+            val sub2 = cleaned.substring(i, i + 2)
+            if (consonants.containsKey(sub2)) {
+                out += consonants[sub2]
+                i += 2
+                // lookahead vowel
+                if (i < cleaned.length && vowels.containsKey(cleaned[i].toString())) {
+                    out += vowels[cleaned[i].toString()]
+                    i += 1
+                }
+                continue
+            }
+        }
+        val sub1 = cleaned[i].toString()
+        if (consonants.containsKey(sub1)) {
+            out += consonants[sub1]
+            i += 1
+            if (i < cleaned.length && vowels.containsKey(cleaned[i].toString())) {
+                out += vowels[cleaned[i].toString()]
+                i += 1
+            }
+        } else if (vowels.containsKey(sub1)) {
+            out += initVowels[sub1] ?: sub1
+            i += 1
+        } else {
+            out += sub1
+            i += 1
+        }
+    }
+    return out
 }
 
 // ----------------------------------------------------
@@ -3843,5 +4194,63 @@ fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): D
             Math.sin(dLon / 2) * Math.sin(dLon / 2)
     val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
     return r * c
+}
+
+@Composable
+fun DrawerNavItem(
+    icon: String,
+    label: String,
+    isActive: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(6.dp))
+            .background(if (isActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else Color.Transparent)
+            .border(
+                1.dp,
+                if (isActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else Color.Transparent,
+                RoundedCornerShape(6.dp)
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Text(icon, fontSize = 14.sp)
+        Text(
+            text = label,
+            color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
+            fontSize = 13.sp,
+            fontFamily = FontFamily.SansSerif
+        )
+    }
+}
+
+@Composable
+fun DrawerActionItem(
+    icon: String,
+    label: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(6.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Text(icon, fontSize = 14.sp)
+        Text(
+            text = label,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontSize = 13.sp,
+            fontFamily = FontFamily.SansSerif
+        )
+    }
 }
 
