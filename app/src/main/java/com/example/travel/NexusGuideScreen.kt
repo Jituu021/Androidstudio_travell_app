@@ -948,7 +948,7 @@ fun HeroCard(userLocationName: String, coordinates: String) {
                     modifier = Modifier
                         .size(8.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF4BE277).copy(alpha = pulseOpacity))
+                        .background(Color(0xFF00E5FF).copy(alpha = pulseOpacity))
                 )
                 Text(
                     text = "ACTIVE",
@@ -982,11 +982,11 @@ fun HeroCard(userLocationName: String, coordinates: String) {
                         modifier = Modifier
                             .size(6.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF4BE277))
+                            .background(Color(0xFF00E5FF))
                     )
                     Text(
                         text = "OFFLINE MODE VERIFIED",
-                        color = Color(0xFF4BE277),
+                        color = Color(0xFF00E5FF),
                         fontFamily = FontFamily.Monospace,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold
@@ -2082,8 +2082,8 @@ fun MapsScreen(
                                 drawLine(color = Color(0xFF1E88E5).copy(alpha = 0.15f), start = Offset(cx, 0f), end = Offset(cx, h), strokeWidth = 1.dp.toPx())
 
                                 // Draw simulated signal towers on screen
-                                drawCircle(color = Color(0xFF4BE277), radius = 6.dp.toPx(), center = Offset(cx - 80.dp.toPx(), cy - 40.dp.toPx()))
-                                drawCircle(color = Color(0xFF4BE277), radius = 6.dp.toPx(), center = Offset(cx + 90.dp.toPx(), cy + 30.dp.toPx()))
+                                drawCircle(color = Color(0xFF00E5FF), radius = 6.dp.toPx(), center = Offset(cx - 80.dp.toPx(), cy - 40.dp.toPx()))
+                                drawCircle(color = Color(0xFF00E5FF), radius = 6.dp.toPx(), center = Offset(cx + 90.dp.toPx(), cy + 30.dp.toPx()))
                                 drawCircle(color = Color(0xFFFFB300), radius = 6.dp.toPx(), center = Offset(cx - 30.dp.toPx(), cy + 60.dp.toPx()))
 
                                 // Draw user in center
@@ -2096,7 +2096,7 @@ fun MapsScreen(
                                 Text("USER_LOC (0,0)", color = Color(0xFFE24B4B), fontSize = 8.sp, fontFamily = FontFamily.Monospace)
                             }
                             Box(modifier = Modifier.align(Alignment.TopEnd).background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(2.dp)).padding(4.dp)) {
-                                Text("SCAN: 5G/4G BAND", color = Color(0xFF4BE277), fontSize = 8.sp, fontFamily = FontFamily.Monospace)
+                                Text("SCAN: 5G/4G BAND", color = Color(0xFF00E5FF), fontSize = 8.sp, fontFamily = FontFamily.Monospace)
                             }
                         }
 
@@ -2111,8 +2111,8 @@ fun MapsScreen(
 
                         // Towers display list
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            TowerRow(name = "Jio Tower (5G Spectrum)", distance = "140m Away", strength = "EXCELLENT", color = Color(0xFF4BE277))
-                            TowerRow(name = "Airtel Tower (4G LTE)", distance = "210m Away", strength = "GOOD", color = Color(0xFF4BE277))
+                            TowerRow(name = "Jio Tower (5G Spectrum)", distance = "140m Away", strength = "EXCELLENT", color = Color(0xFF00E5FF))
+                            TowerRow(name = "Airtel Tower (4G LTE)", distance = "210m Away", strength = "GOOD", color = Color(0xFF00E5FF))
                             TowerRow(name = "BSNL Tower (3G Network)", distance = "70m Away", strength = "WEAK", color = Color(0xFFFFB300))
                         }
 
@@ -2598,7 +2598,7 @@ fun TranslateScreen() {
                         ) {
                             Text(text = lang, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                             if (isDownloaded) {
-                                Text("✓", color = Color(0xFF4BE277), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                Text("✓", color = Color(0xFF00E5FF), fontSize = 10.sp, fontWeight = FontWeight.Bold)
                             } else {
                                 Text("⬇", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
                             }
@@ -2651,7 +2651,7 @@ fun TranslateScreen() {
             } else {
                 Text(
                     text = "✓ Offline pack active for ${selectedLang} (Local AI Engine Ready)",
-                    color = Color(0xFF4BE277),
+                    color = Color(0xFF00E5FF),
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace
                 )
@@ -3272,6 +3272,22 @@ fun ProfileScreen(
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold
                 )
+                if (userSession.homeLocation.isNotEmpty()) {
+                    Text(
+                        text = "HOME: " + userSession.homeLocation.uppercase(),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 10.sp
+                    )
+                }
+                if (userSession.travelFrequency.isNotEmpty()) {
+                    Text(
+                        text = "TRAVELS: " + userSession.travelFrequency.uppercase(),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 10.sp
+                    )
+                }
             }
         }
 

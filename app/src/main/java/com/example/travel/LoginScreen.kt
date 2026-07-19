@@ -35,18 +35,26 @@ fun LoginScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    var isEmailMode by remember { mutableStateOf(true) }
-    var isLoginTab by remember { mutableStateOf(true) }
+    // Main Mode: true = OTP mode, false = Traditional (Email/Password & Google)
+    var isOtpPortalMode by remember { mutableStateOf(true) }
+    // Tab within OTP mode: true = LOGIN, false = REGISTER
+    var isOtpLoginTab by remember { mutableStateOf(true) }
+    
+    // Tab within Traditional mode: true = LOGIN, false = REGISTER
+    var isTradLoginTab by remember { mutableStateOf(true) }
 
-    // Email/Password states
+    // Common Inputs
+    var nameInput by remember { mutableStateOf("") }
     var emailInput by remember { mutableStateOf("") }
-    var usernameInput by remember { mutableStateOf("") }
     var phoneInput by remember { mutableStateOf("") }
+    var homeLocationInput by remember { mutableStateOf("") }
+    var travelFrequencyInput by remember { mutableStateOf("") }
+
+    // Traditional Password inputs
     var passwordInput by remember { mutableStateOf("") }
     var confirmPasswordInput by remember { mutableStateOf("") }
 
-    // Phone OTP states
-    var otpPhoneInput by remember { mutableStateOf("") }
+    // OTP verification inputs
     var otpCodeInput by remember { mutableStateOf("") }
     var generatedOtp by remember { mutableStateOf("") }
     var showOtpField by remember { mutableStateOf(false) }
@@ -56,14 +64,15 @@ fun LoginScreen(
     // Google Sign-In Simulation states
     var showGoogleChooser by remember { mutableStateOf(false) }
 
-    // Error messages
+    // Error / Status Message
     var errorMessage by remember { mutableStateOf("") }
+    var successMessage by remember { mutableStateOf("") }
 
     // Gradient background
     val bgGradient = Brush.verticalGradient(
         colors = listOf(
-            Color(0xFF0F1B2B), // Dark Navy
-            Color(0xFF070B12)  // Near Black
+            Color(0xFF0F1B2F), // Sleek Dark Navy
+            Color(0xFF080D18)  // Near Black
         )
     )
 
@@ -97,16 +106,16 @@ fun LoginScreen(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(72.dp)
+                        .size(80.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
                         .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "TB",
                         color = MaterialTheme.colorScheme.primary,
-                        fontSize = 32.sp,
+                        fontSize = 36.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = FontFamily.Monospace
                     )
@@ -114,21 +123,22 @@ fun LoginScreen(
                 Text(
                     text = "TRAVEL BUDDY",
                     color = Color.White,
-                    fontSize = 24.sp,
+                    fontSize = 26.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.SansSerif,
                     letterSpacing = 2.sp
                 )
                 Text(
-                    text = "SECURE TELEMETRY ACCESS",
-                    color = MaterialTheme.colorScheme.primary,
+                    text = "OFFLINE-FIRST TRAVEL COMPANION",
+                    color = MaterialTheme.colorScheme.secondary,
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp
                 )
             }
 
-            // Auth Mode Selector
+            // Top level selector between OTP portal & password portal
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -140,38 +150,44 @@ fun LoginScreen(
             ) {
                 Button(
                     onClick = {
-                        isEmailMode = true
+                        isOtpPortalMode = true
                         errorMessage = ""
+                        successMessage = ""
+                        showOtpField = false
+                        otpCodeInput = ""
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isEmailMode) MaterialTheme.colorScheme.primary else Color.Transparent,
-                        contentColor = if (isEmailMode) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                        containerColor = if (isOtpPortalMode) MaterialTheme.colorScheme.primary else Color.Transparent,
+                        contentColor = if (isOtpPortalMode) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                     ),
                     modifier = Modifier.weight(1f).fillMaxHeight(),
                     shape = RoundedCornerShape(6.dp),
                     contentPadding = PaddingValues(0.dp)
                 ) {
-                    Text("EMAIL / PASS", fontFamily = FontFamily.Monospace, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text("OTP ACCESS", fontFamily = FontFamily.Monospace, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
 
                 Button(
                     onClick = {
-                        isEmailMode = false
+                        isOtpPortalMode = false
                         errorMessage = ""
+                        successMessage = ""
+                        showOtpField = false
+                        otpCodeInput = ""
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (!isEmailMode) MaterialTheme.colorScheme.primary else Color.Transparent,
-                        contentColor = if (!isEmailMode) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                        containerColor = if (!isOtpPortalMode) MaterialTheme.colorScheme.primary else Color.Transparent,
+                        contentColor = if (!isOtpPortalMode) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                     ),
                     modifier = Modifier.weight(1f).fillMaxHeight(),
                     shape = RoundedCornerShape(6.dp),
                     contentPadding = PaddingValues(0.dp)
                 ) {
-                    Text("PHONE + OTP", fontFamily = FontFamily.Monospace, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text("PASSWORDS", fontFamily = FontFamily.Monospace, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             }
 
-            // Card body
+            // Main Card container for form
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
@@ -182,45 +198,381 @@ fun LoginScreen(
                     modifier = Modifier.padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    if (isEmailMode) {
-                        // Login / Register Selector Tabs inside Email Card
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            Text(
-                                text = "LOGIN",
-                                color = if (isLoginTab) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp,
-                                fontFamily = FontFamily.Monospace,
-                                modifier = Modifier
-                                    .clickable { isLoginTab = true; errorMessage = "" }
-                                    .padding(vertical = 4.dp)
-                            )
-                            Text(
-                                text = "REGISTER",
-                                color = if (!isLoginTab) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp,
-                                fontFamily = FontFamily.Monospace,
-                                modifier = Modifier
-                                    .clickable { isLoginTab = false; errorMessage = "" }
-                                    .padding(vertical = 4.dp)
-                            )
-                        }
+                    // Portal Specific Header Tabs (LOGIN vs REGISTER)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(20.dp)
+                    ) {
+                        val isLogin = if (isOtpPortalMode) isOtpLoginTab else isTradLoginTab
+                        Text(
+                            text = "LOG IN",
+                            color = if (isLogin) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier
+                                .clickable {
+                                    if (isOtpPortalMode) isOtpLoginTab = true else isTradLoginTab = true
+                                    errorMessage = ""
+                                    successMessage = ""
+                                    showOtpField = false
+                                    otpCodeInput = ""
+                                }
+                                .padding(vertical = 4.dp)
+                        )
+                        Text(
+                            text = "REGISTER",
+                            color = if (!isLogin) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier
+                                .clickable {
+                                    if (isOtpPortalMode) isOtpLoginTab = false else isTradLoginTab = false
+                                    errorMessage = ""
+                                    successMessage = ""
+                                    showOtpField = false
+                                    otpCodeInput = ""
+                                }
+                                .padding(vertical = 4.dp)
+                        )
+                    }
 
-                        if (errorMessage.isNotEmpty()) {
-                            Text(
-                                text = errorMessage,
-                                color = MaterialTheme.colorScheme.error,
-                                fontSize = 12.sp,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        }
+                    // Dynamic error / success banners
+                    if (errorMessage.isNotEmpty()) {
+                        Text(
+                            text = "⚠️ $errorMessage",
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                    if (successMessage.isNotEmpty()) {
+                        Text(
+                            text = "✓ $successMessage",
+                            color = MaterialTheme.colorScheme.secondary,
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
 
-                        if (isLoginTab) {
-                            // Login Fields
+                    // RENDER FORMS
+                    if (isOtpPortalMode) {
+                        // ==========================================
+                        // OTP PORTAL MODE (LOGIN / REGISTER)
+                        // ==========================================
+                        if (isOtpLoginTab) {
+                            // OTP LOGIN TAB
+                            if (!showOtpField) {
+                                Text(
+                                    text = "Enter your registered mobile number to log in via one-time passkey.",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+
+                                OutlinedTextField(
+                                    value = phoneInput,
+                                    onValueChange = { phoneInput = it },
+                                    label = { Text("Phone Number (+91)") },
+                                    leadingIcon = { Text("🇮🇳", modifier = Modifier.padding(start = 8.dp)) },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true
+                                )
+
+                                Button(
+                                    onClick = {
+                                        val trimmed = phoneInput.trim()
+                                        if (trimmed.length != 10 || !trimmed.all { it.isDigit() }) {
+                                            errorMessage = "Enter a valid 10-digit phone number."
+                                            return@Button
+                                        }
+                                        
+                                        val existing = dbHelper.checkPhoneLogin("+91$trimmed")
+                                        if (existing == null) {
+                                            errorMessage = "Phone number is not registered. Please switch to the REGISTER tab."
+                                            return@Button
+                                        }
+
+                                        coroutineScope.launch {
+                                            isSendingOtp = true
+                                            errorMessage = ""
+                                            delay(1500)
+                                            isSendingOtp = false
+                                            val code = (100000..999999).random().toString()
+                                            generatedOtp = code
+                                            showOtpField = true
+                                            otpTimer = 60
+                                            successMessage = "OTP sent to +91 $trimmed"
+                                            Toast.makeText(context, "[SMS GATEWAY SIMULATION]\nFrom: Travel Buddy Verification\nCode: $code\n(Use this code to log in)", Toast.LENGTH_LONG).show()
+                                        }
+                                    },
+                                    enabled = !isSendingOtp,
+                                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    if (isSendingOtp) {
+                                        CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                                    } else {
+                                        Text("SEND LOG IN OTP", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            } else {
+                                // Show OTP verify field
+                                Text(
+                                    text = "Simulated login code sent to +91 $phoneInput. Enter it below:",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+
+                                OutlinedTextField(
+                                    value = otpCodeInput,
+                                    onValueChange = { otpCodeInput = it },
+                                    label = { Text("6-Digit Login Code") },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true
+                                )
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    if (otpTimer > 0) {
+                                        Text(
+                                            text = "Resend in ${otpTimer}s",
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                    } else {
+                                        Text(
+                                            text = "Resend OTP",
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            fontFamily = FontFamily.Monospace,
+                                            modifier = Modifier.clickable {
+                                                val code = (100000..999999).random().toString()
+                                                generatedOtp = code
+                                                otpTimer = 60
+                                                successMessage = "New OTP sent."
+                                                Toast.makeText(context, "[SMS GATEWAY SIMULATION]\nFrom: Travel Buddy Verification\nCode: $code", Toast.LENGTH_LONG).show()
+                                            }
+                                        )
+                                    }
+
+                                    Text(
+                                        text = "Change Number",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.clickable {
+                                            showOtpField = false
+                                            otpCodeInput = ""
+                                            errorMessage = ""
+                                            successMessage = ""
+                                        }
+                                    )
+                                }
+
+                                Button(
+                                    onClick = {
+                                        if (otpCodeInput.trim() == generatedOtp) {
+                                            val user = dbHelper.checkPhoneLogin("+91${phoneInput.trim()}")
+                                            if (user != null) {
+                                                Toast.makeText(context, "Log in successful!", Toast.LENGTH_SHORT).show()
+                                                onLoginSuccess(user)
+                                            } else {
+                                                errorMessage = "Error logging in. Try registering instead."
+                                            }
+                                        } else {
+                                            errorMessage = "Invalid verification code."
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text("VERIFY & LOG IN", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        } else {
+                            // OTP REGISTER TAB
+                            if (!showOtpField) {
+                                Text(
+                                    text = "Complete your traveler profile below to register using OTP authentication.",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+
+                                // Name
+                                OutlinedTextField(
+                                    value = nameInput,
+                                    onValueChange = { nameInput = it },
+                                    label = { Text("Name") },
+                                    leadingIcon = { Text("👤", modifier = Modifier.padding(start = 8.dp)) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true
+                                )
+
+                                // Mail ID
+                                OutlinedTextField(
+                                    value = emailInput,
+                                    onValueChange = { emailInput = it },
+                                    label = { Text("Mail ID") },
+                                    leadingIcon = { Text("✉️", modifier = Modifier.padding(start = 8.dp)) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true
+                                )
+
+                                // Phone Number
+                                OutlinedTextField(
+                                    value = phoneInput,
+                                    onValueChange = { phoneInput = it },
+                                    label = { Text("Phone Number") },
+                                    leadingIcon = { Text("📞", modifier = Modifier.padding(start = 8.dp)) },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true
+                                )
+
+                                // Your Home Location
+                                OutlinedTextField(
+                                    value = homeLocationInput,
+                                    onValueChange = { homeLocationInput = it },
+                                    label = { Text("Your Home Location") },
+                                    leadingIcon = { Text("📍", modifier = Modifier.padding(start = 8.dp)) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true
+                                )
+
+                                // How often you travel
+                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    OutlinedTextField(
+                                        value = travelFrequencyInput,
+                                        onValueChange = { travelFrequencyInput = it },
+                                        label = { Text("How often you travel") },
+                                        leadingIcon = { Text("✈️", modifier = Modifier.padding(start = 8.dp)) },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        singleLine = true
+                                    )
+                                    
+                                    // Quick Choice Chips
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        val chips = listOf("Weekly", "Monthly", "Occasionally", "Rarely")
+                                        chips.forEach { choice ->
+                                            Box(
+                                                modifier = Modifier
+                                                    .border(
+                                                        width = 1.dp,
+                                                        color = if (travelFrequencyInput == choice) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                                                        shape = RoundedCornerShape(20.dp)
+                                                    )
+                                                    .background(
+                                                        if (travelFrequencyInput == choice) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else Color.Transparent,
+                                                        RoundedCornerShape(20.dp)
+                                                    )
+                                                    .clickable { travelFrequencyInput = choice }
+                                                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                                            ) {
+                                                Text(text = choice, fontSize = 10.sp, color = if (travelFrequencyInput == choice) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Button(
+                                    onClick = {
+                                        if (nameInput.trim().isEmpty() || emailInput.trim().isEmpty() || phoneInput.trim().isEmpty() || homeLocationInput.trim().isEmpty() || travelFrequencyInput.trim().isEmpty()) {
+                                            errorMessage = "All registration fields are required."
+                                            return@Button
+                                        }
+                                        val trimmedPhone = phoneInput.trim()
+                                        if (trimmedPhone.length != 10 || !trimmedPhone.all { it.isDigit() }) {
+                                            errorMessage = "Enter a valid 10-digit phone number."
+                                            return@Button
+                                        }
+
+                                        coroutineScope.launch {
+                                            isSendingOtp = true
+                                            errorMessage = ""
+                                            delay(1500)
+                                            isSendingOtp = false
+                                            val code = (100000..999999).random().toString()
+                                            generatedOtp = code
+                                            showOtpField = true
+                                            otpTimer = 60
+                                            successMessage = "OTP sent to email & phone."
+                                            Toast.makeText(context, "[OTP REGISTRATION SYSTEM]\nVerification code sent to $emailInput and +91 $trimmedPhone.\n\nUse Code: $code", Toast.LENGTH_LONG).show()
+                                        }
+                                    },
+                                    enabled = !isSendingOtp,
+                                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    if (isSendingOtp) {
+                                        CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                                    } else {
+                                        Text("GENERATE REGISTRATION OTP", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                    }
+                                }
+                            } else {
+                                // Show Register OTP field
+                                Text(
+                                    text = "Enter the 6-digit registration OTP code sent to $emailInput:",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+
+                                OutlinedTextField(
+                                    value = otpCodeInput,
+                                    onValueChange = { otpCodeInput = it },
+                                    label = { Text("6-Digit Verification Code") },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true
+                                )
+
+                                Button(
+                                    onClick = {
+                                        if (otpCodeInput.trim() == generatedOtp) {
+                                            val fullPhone = "+91${phoneInput.trim()}"
+                                            val success = dbHelper.registerUser(
+                                                username = nameInput.trim(),
+                                                email = emailInput.trim(),
+                                                phone = fullPhone,
+                                                password = "OtpAuth123",
+                                                homeLocation = homeLocationInput.trim(),
+                                                travelFrequency = travelFrequencyInput.trim()
+                                            )
+                                            if (success) {
+                                                Toast.makeText(context, "Registration successful!", Toast.LENGTH_SHORT).show()
+                                                val loggedIn = dbHelper.checkPhoneLogin(fullPhone)
+                                                if (loggedIn != null) onLoginSuccess(loggedIn)
+                                            } else {
+                                                errorMessage = "Error registering profile: Mail ID or Phone Number already exists."
+                                                showOtpField = false
+                                            }
+                                        } else {
+                                            errorMessage = "Incorrect OTP code. Try again."
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text("VERIFY & COMPLETE REGISTER", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                                }
+                            }
+                        }
+                    } else {
+                        // ==========================================
+                        // TRADITIONAL PORTAL MODE
+                        // ==========================================
+                        if (isTradLoginTab) {
                             OutlinedTextField(
                                 value = emailInput,
                                 onValueChange = { emailInput = it },
@@ -256,21 +608,21 @@ fun LoginScreen(
                                 modifier = Modifier.fillMaxWidth().height(48.dp),
                                 shape = RoundedCornerShape(8.dp)
                             ) {
-                                Text("ACCESS PROTOCOL", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                Text("ACCESS CONSOLE", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
                             }
                         } else {
-                            // Register Fields
+                            // REGISTER PASSWORD TAB
                             OutlinedTextField(
-                                value = usernameInput,
-                                onValueChange = { usernameInput = it },
-                                label = { Text("Username") },
+                                value = nameInput,
+                                onValueChange = { nameInput = it },
+                                label = { Text("Name") },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true
                             )
                             OutlinedTextField(
                                 value = emailInput,
                                 onValueChange = { emailInput = it },
-                                label = { Text("Email Address") },
+                                label = { Text("Mail ID") },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true
                             )
@@ -279,6 +631,20 @@ fun LoginScreen(
                                 onValueChange = { phoneInput = it },
                                 label = { Text("Phone Number") },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+                            OutlinedTextField(
+                                value = homeLocationInput,
+                                onValueChange = { homeLocationInput = it },
+                                label = { Text("Home Location") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                            )
+                            OutlinedTextField(
+                                value = travelFrequencyInput,
+                                onValueChange = { travelFrequencyInput = it },
+                                label = { Text("How often you travel") },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true
                             )
@@ -301,8 +667,8 @@ fun LoginScreen(
 
                             Button(
                                 onClick = {
-                                    if (usernameInput.trim().isEmpty() || emailInput.trim().isEmpty() || phoneInput.trim().isEmpty() || passwordInput.isEmpty()) {
-                                        errorMessage = "All fields are required."
+                                    if (nameInput.trim().isEmpty() || emailInput.trim().isEmpty() || phoneInput.trim().isEmpty() || passwordInput.isEmpty()) {
+                                        errorMessage = "Fields marked with Name, Mail ID, Phone, Password are required."
                                         return@Button
                                     }
                                     if (passwordInput.length < 6) {
@@ -314,172 +680,25 @@ fun LoginScreen(
                                         return@Button
                                     }
                                     val success = dbHelper.registerUser(
-                                        usernameInput.trim(),
-                                        emailInput.trim(),
-                                        phoneInput.trim(),
-                                        passwordInput.trim()
+                                        username = nameInput.trim(),
+                                        email = emailInput.trim(),
+                                        phone = "+91${phoneInput.trim()}",
+                                        password = passwordInput.trim(),
+                                        homeLocation = homeLocationInput.trim(),
+                                        travelFrequency = travelFrequencyInput.trim()
                                     )
                                     if (success) {
                                         Toast.makeText(context, "Registration successful!", Toast.LENGTH_SHORT).show()
                                         val loggedIn = dbHelper.checkEmailLogin(emailInput.trim(), passwordInput.trim())
                                         if (loggedIn != null) onLoginSuccess(loggedIn)
                                     } else {
-                                        errorMessage = "Error: Username/Email already exists."
+                                        errorMessage = "Error: Email or Phone already exists."
                                     }
                                 },
                                 modifier = Modifier.fillMaxWidth().height(48.dp),
                                 shape = RoundedCornerShape(8.dp)
                             ) {
-                                Text("REGISTER NEW PROFILE", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    } else {
-                        // Phone OTP Module
-                        Text(
-                            text = "OTP VERIFICATION PORTAL",
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontSize = 12.sp,
-                            fontFamily = FontFamily.Monospace
-                        )
-
-                        if (errorMessage.isNotEmpty()) {
-                            Text(
-                                text = errorMessage,
-                                color = MaterialTheme.colorScheme.error,
-                                fontSize = 12.sp,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        }
-
-                        if (!showOtpField) {
-                            OutlinedTextField(
-                                value = otpPhoneInput,
-                                onValueChange = { otpPhoneInput = it },
-                                label = { Text("Phone Number (+91)") },
-                                leadingIcon = { Text("🇮🇳", modifier = Modifier.padding(start = 8.dp)) },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true
-                            )
-
-                            Button(
-                                onClick = {
-                                    val trimmed = otpPhoneInput.trim()
-                                    if (trimmed.length != 10 || !trimmed.all { it.isDigit() }) {
-                                        errorMessage = "Enter a valid 10-digit Indian phone number."
-                                        return@Button
-                                    }
-                                    coroutineScope.launch {
-                                        isSendingOtp = true
-                                        delay(1500)
-                                        isSendingOtp = false
-                                        val randOtp = (100000..999999).random().toString()
-                                        generatedOtp = randOtp
-                                        showOtpField = true
-                                        otpTimer = 60
-                                        errorMessage = ""
-                                        // Show Dialog/Toast simulator
-                                        Toast.makeText(context, "SYSTEM: OTP sent to +91 $trimmed.\nUse Code: $randOtp", Toast.LENGTH_LONG).show()
-                                    }
-                                },
-                                enabled = !isSendingOtp,
-                                modifier = Modifier.fillMaxWidth().height(48.dp),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                if (isSendingOtp) {
-                                    CircularProgressIndicator(
-                                        color = MaterialTheme.colorScheme.onPrimary,
-                                        modifier = Modifier.size(20.dp),
-                                        strokeWidth = 2.dp
-                                    )
-                                } else {
-                                    Text("SEND VERIFICATION OTP", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
-                                }
-                            }
-                        } else {
-                            Text(
-                                text = "Verification code sent to +91 $otpPhoneInput. Enter below:",
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-
-                            OutlinedTextField(
-                                value = otpCodeInput,
-                                onValueChange = { otpCodeInput = it },
-                                label = { Text("6-Digit OTP") },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true
-                            )
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                if (otpTimer > 0) {
-                                    Text(
-                                        text = "Resend OTP in ${otpTimer}s",
-                                        fontSize = 11.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        fontFamily = FontFamily.Monospace
-                                    )
-                                } else {
-                                    Text(
-                                        text = "Resend OTP",
-                                        fontSize = 11.sp,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        fontFamily = FontFamily.Monospace,
-                                        modifier = Modifier.clickable {
-                                            val randOtp = (100000..999999).random().toString()
-                                            generatedOtp = randOtp
-                                            otpTimer = 60
-                                            Toast.makeText(context, "SYSTEM: OTP Resent.\nUse Code: $randOtp", Toast.LENGTH_LONG).show()
-                                        }
-                                    )
-                                }
-
-                                Text(
-                                    text = "Change Number",
-                                    fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.clickable {
-                                        showOtpField = false
-                                        otpCodeInput = ""
-                                        errorMessage = ""
-                                    }
-                                )
-                            }
-
-                            Button(
-                                onClick = {
-                                    if (otpCodeInput.trim() == generatedOtp) {
-                                        val userPhone = "+91$otpPhoneInput"
-                                        // Retrieve or register automatically in database helper
-                                        val existingUser = dbHelper.checkPhoneLogin(userPhone)
-                                        if (existingUser != null) {
-                                            Toast.makeText(context, "Welcome back, ${existingUser.username}!", Toast.LENGTH_SHORT).show()
-                                            onLoginSuccess(existingUser)
-                                        } else {
-                                            // Auto-register
-                                            val autoUser = "user_" + (1000..9999).random().toString()
-                                            val autoEmail = "$autoUser@travelbuddy.in"
-                                            dbHelper.registerUser(autoUser, autoEmail, userPhone, "PhoneAuth123")
-                                            val newlyCreated = dbHelper.checkPhoneLogin(userPhone)
-                                            if (newlyCreated != null) {
-                                                Toast.makeText(context, "Profile registered successfully via OTP!", Toast.LENGTH_SHORT).show()
-                                                onLoginSuccess(newlyCreated)
-                                            }
-                                        }
-                                    } else {
-                                        errorMessage = "Verification Failed: Incorrect 6-digit OTP code."
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth().height(48.dp),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text("VERIFY & LOG IN", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                Text("REGISTER ACCOUNT", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -488,7 +707,7 @@ fun LoginScreen(
 
             // Google Authentication Section
             Text(
-                text = "— OR REGISTER VIA THIRD-PARTY SECURITY —",
+                text = "— OR QUICK THIRD-PARTY ACCESS —",
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 fontSize = 9.sp,
                 fontFamily = FontFamily.Monospace,
@@ -530,10 +749,18 @@ fun LoginScreen(
             // Bypass Button for Testing
             TextButton(
                 onClick = {
-                    val adminUser = dbHelper.checkEmailLogin("admin", "AdminPassword123")
+                    val adminUser = dbHelper.checkEmailLogin("Admin", "AdminPassword123")
                     if (adminUser != null) {
                         Toast.makeText(context, "System Admin Override Active", Toast.LENGTH_SHORT).show()
                         onLoginSuccess(adminUser)
+                    } else {
+                        // Fallback register admin if database reset
+                        dbHelper.registerUser("Admin", "admin@travelbuddy.com", "+919999999999", "AdminPassword123", "New Delhi, India", "Frequently", true)
+                        val adminRetry = dbHelper.checkEmailLogin("Admin", "AdminPassword123")
+                        if (adminRetry != null) {
+                            Toast.makeText(context, "System Admin Override Restored", Toast.LENGTH_SHORT).show()
+                            onLoginSuccess(adminRetry)
+                        }
                     }
                 }
             ) {

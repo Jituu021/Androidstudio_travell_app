@@ -10,6 +10,8 @@ data class User(
     val username: String,
     val email: String,
     val phone: String,
+    val homeLocation: String,
+    val travelFrequency: String,
     val isAdmin: Boolean
 )
 
@@ -17,7 +19,7 @@ class TravelDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABAS
 
     companion object {
         private const val DATABASE_NAME = "travel_buddy.db"
-        private const val DATABASE_VERSION = 1
+        private const val DATABASE_VERSION = 2
 
         const val TABLE_USERS = "users"
         const val COLUMN_ID = "id"
@@ -25,6 +27,8 @@ class TravelDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABAS
         const val COLUMN_EMAIL = "email"
         const val COLUMN_PHONE = "phone"
         const val COLUMN_PASSWORD = "password"
+        const val COLUMN_HOME_LOCATION = "home_location"
+        const val COLUMN_TRAVEL_FREQUENCY = "travel_frequency"
         const val COLUMN_IS_ADMIN = "is_admin"
     }
 
@@ -32,10 +36,12 @@ class TravelDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABAS
         val createTableQuery = """
             CREATE TABLE $TABLE_USERS (
                 $COLUMN_ID INTEGER PRIMARY KEY AUTOINCREMENT,
-                $COLUMN_USERNAME TEXT UNIQUE,
+                $COLUMN_USERNAME TEXT,
                 $COLUMN_EMAIL TEXT UNIQUE,
                 $COLUMN_PHONE TEXT UNIQUE,
                 $COLUMN_PASSWORD TEXT,
+                $COLUMN_HOME_LOCATION TEXT,
+                $COLUMN_TRAVEL_FREQUENCY TEXT,
                 $COLUMN_IS_ADMIN INTEGER DEFAULT 0
             )
         """.trimIndent()
@@ -43,10 +49,12 @@ class TravelDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABAS
 
         // Seed default admin account
         val adminValues = ContentValues().apply {
-            put(COLUMN_USERNAME, "admin")
+            put(COLUMN_USERNAME, "Admin")
             put(COLUMN_EMAIL, "admin@travelbuddy.com")
             put(COLUMN_PHONE, "+919999999999")
             put(COLUMN_PASSWORD, "AdminPassword123")
+            put(COLUMN_HOME_LOCATION, "New Delhi, India")
+            put(COLUMN_TRAVEL_FREQUENCY, "Frequently")
             put(COLUMN_IS_ADMIN, 1)
         }
         db.insert(TABLE_USERS, null, adminValues)
@@ -57,13 +65,23 @@ class TravelDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABAS
         onCreate(db)
     }
 
-    fun registerUser(username: String, email: String, phone: String, password: String, isAdmin: Boolean = false): Boolean {
+    fun registerUser(
+        username: String,
+        email: String,
+        phone: String,
+        password: String = "OtpAuth123",
+        homeLocation: String = "",
+        travelFrequency: String = "",
+        isAdmin: Boolean = false
+    ): Boolean {
         val db = this.writableDatabase
         val values = ContentValues().apply {
             put(COLUMN_USERNAME, username)
             put(COLUMN_EMAIL, email)
             put(COLUMN_PHONE, phone)
             put(COLUMN_PASSWORD, password)
+            put(COLUMN_HOME_LOCATION, homeLocation)
+            put(COLUMN_TRAVEL_FREQUENCY, travelFrequency)
             put(COLUMN_IS_ADMIN, if (isAdmin) 1 else 0)
         }
         val result = db.insert(TABLE_USERS, null, values)
@@ -84,8 +102,10 @@ class TravelDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABAS
             val username = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_USERNAME))
             val email = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMAIL))
             val phone = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PHONE))
+            val home = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_HOME_LOCATION)) ?: ""
+            val freq = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TRAVEL_FREQUENCY)) ?: ""
             val isAdmin = cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_IS_ADMIN)) == 1
-            user = User(id, username, email, phone, isAdmin)
+            user = User(id, username, email, phone, home, freq, isAdmin)
         }
         cursor.close()
         return user
@@ -102,8 +122,10 @@ class TravelDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABAS
             val username = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_USERNAME))
             val email = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMAIL))
             val ph = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PHONE))
+            val home = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_HOME_LOCATION)) ?: ""
+            val freq = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TRAVEL_FREQUENCY)) ?: ""
             val isAdmin = cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_IS_ADMIN)) == 1
-            user = User(id, username, email, ph, isAdmin)
+            user = User(id, username, email, ph, home, freq, isAdmin)
         }
         cursor.close()
         return user
@@ -118,9 +140,11 @@ class TravelDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABAS
             val id = cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_ID))
             val dbUsername = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_USERNAME))
             val phone = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PHONE)) ?: ""
+            val home = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_HOME_LOCATION)) ?: ""
+            val freq = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TRAVEL_FREQUENCY)) ?: ""
             val isAdmin = cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_IS_ADMIN)) == 1
             cursor.close()
-            return User(id, dbUsername, email, phone, isAdmin)
+            return User(id, dbUsername, email, phone, home, freq, isAdmin)
         }
         cursor.close()
 
@@ -131,10 +155,12 @@ class TravelDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABAS
             put(COLUMN_EMAIL, email)
             put(COLUMN_PHONE, dummyPhone)
             put(COLUMN_PASSWORD, "GoogleAuth123")
+            put(COLUMN_HOME_LOCATION, "New Delhi, India")
+            put(COLUMN_TRAVEL_FREQUENCY, "Occasionally")
             put(COLUMN_IS_ADMIN, 0)
         }
         val newId = db.insert(TABLE_USERS, null, values)
-        return User(newId.toInt(), username, email, dummyPhone, false)
+        return User(newId.toInt(), username, email, dummyPhone, "New Delhi, India", "Occasionally", false)
     }
 
     fun getAllUsers(): List<User> {
@@ -147,8 +173,10 @@ class TravelDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABAS
                 val username = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_USERNAME))
                 val email = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMAIL))
                 val phone = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PHONE)) ?: ""
+                val home = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_HOME_LOCATION)) ?: ""
+                val freq = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TRAVEL_FREQUENCY)) ?: ""
                 val isAdmin = cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_IS_ADMIN)) == 1
-                list.add(User(id, username, email, phone, isAdmin))
+                list.add(User(id, username, email, phone, home, freq, isAdmin))
             } while (cursor.moveToNext())
         }
         cursor.close()
@@ -157,7 +185,7 @@ class TravelDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABAS
 
     fun clearDatabase(): Boolean {
         val db = this.writableDatabase
-        db.execSQL("DELETE FROM $TABLE_USERS WHERE $COLUMN_USERNAME != 'admin'")
+        db.execSQL("DELETE FROM $TABLE_USERS WHERE $COLUMN_USERNAME != 'Admin'")
         return true
     }
 }
