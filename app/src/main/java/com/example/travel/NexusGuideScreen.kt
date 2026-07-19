@@ -2005,6 +2005,10 @@ fun MapsScreen(
                                                     Toast.makeText(context, "Arrived at destination!", Toast.LENGTH_SHORT).show()
                                                 }
                                             },
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = MaterialTheme.colorScheme.tertiary,
+                                                contentColor = MaterialTheme.colorScheme.onTertiary
+                                            ),
                                             modifier = Modifier.weight(1.3f).height(32.dp),
                                             shape = RoundedCornerShape(4.dp),
                                             contentPadding = PaddingValues(0.dp)
@@ -2847,8 +2851,8 @@ fun TranslateScreen() {
             modifier = Modifier.fillMaxWidth().height(48.dp),
             shape = RoundedCornerShape(8.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
+                containerColor = MaterialTheme.colorScheme.tertiary,
+                contentColor = MaterialTheme.colorScheme.onTertiary,
                 disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
             )
         ) {

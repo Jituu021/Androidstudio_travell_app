@@ -155,8 +155,8 @@ fun LoginScreen(
     // Gradient background
     val bgGradient = Brush.verticalGradient(
         colors = listOf(
-            Color(0xFF0F1B2F), // Sleek Dark Navy
-            Color(0xFF080D18)  // Near Black
+            Color(0xFFE8F5E9), // Very Light Forest Green tint
+            Color(0xFFF8F9FA)  // Clean Light Background
         )
     )
 
@@ -206,7 +206,7 @@ fun LoginScreen(
                 }
                 Text(
                     text = "TRAVEL BUDDY",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.primary,
                     fontSize = 26.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.SansSerif,
@@ -404,6 +404,10 @@ fun LoginScreen(
                                         }
                                     },
                                     enabled = !isSendingOtp,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.tertiary,
+                                        contentColor = MaterialTheme.colorScheme.onTertiary
+                                    ),
                                     modifier = Modifier.fillMaxWidth().height(48.dp),
                                     shape = RoundedCornerShape(8.dp)
                                 ) {
@@ -485,6 +489,10 @@ fun LoginScreen(
                                             errorMessage = "Invalid verification code."
                                         }
                                     },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.tertiary,
+                                        contentColor = MaterialTheme.colorScheme.onTertiary
+                                    ),
                                     modifier = Modifier.fillMaxWidth().height(48.dp),
                                     shape = RoundedCornerShape(8.dp)
                                 ) {
@@ -615,6 +623,10 @@ fun LoginScreen(
                                         }
                                     },
                                     enabled = !isSendingOtp,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.tertiary,
+                                        contentColor = MaterialTheme.colorScheme.onTertiary
+                                    ),
                                     modifier = Modifier.fillMaxWidth().height(48.dp),
                                     shape = RoundedCornerShape(8.dp)
                                 ) {
@@ -665,6 +677,10 @@ fun LoginScreen(
                                             errorMessage = "Incorrect OTP code. Try again."
                                         }
                                     },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = MaterialTheme.colorScheme.tertiary,
+                                        contentColor = MaterialTheme.colorScheme.onTertiary
+                                    ),
                                     modifier = Modifier.fillMaxWidth().height(48.dp),
                                     shape = RoundedCornerShape(8.dp)
                                 ) {
@@ -709,6 +725,10 @@ fun LoginScreen(
                                         errorMessage = "Invalid credentials. Try again."
                                     }
                                 },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.tertiary,
+                                    contentColor = MaterialTheme.colorScheme.onTertiary
+                                ),
                                 modifier = Modifier.fillMaxWidth().height(48.dp),
                                 shape = RoundedCornerShape(8.dp)
                             ) {
@@ -799,6 +819,10 @@ fun LoginScreen(
                                         errorMessage = "Error: Email or Phone already exists."
                                     }
                                 },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.tertiary,
+                                    contentColor = MaterialTheme.colorScheme.onTertiary
+                                ),
                                 modifier = Modifier.fillMaxWidth().height(48.dp),
                                 shape = RoundedCornerShape(8.dp)
                             ) {

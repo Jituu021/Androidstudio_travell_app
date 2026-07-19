@@ -11,7 +11,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
-private val DarkColorScheme = darkColorScheme(
+private val LightColorScheme = lightColorScheme(
     primary = Primary,
     onPrimary = OnPrimary,
     primaryContainer = PrimaryContainer,
@@ -38,13 +38,12 @@ private val DarkColorScheme = darkColorScheme(
     outlineVariant = OutlineVariant
 )
 
-// We want to force our sci-fi theme for visual excellence, so we reuse the dark scheme.
-private val LightColorScheme = DarkColorScheme
+private val DarkColorScheme = LightColorScheme
 
 @Composable
 fun TravelTheme(
-    darkTheme: Boolean = true, // Force dark theme by default
-    dynamicColor: Boolean = false, // Disable dynamic colors to preserve our sci-fi palette
+    darkTheme: Boolean = false, // Default to light nature theme
+    dynamicColor: Boolean = false, // Disable dynamic color overlays
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
