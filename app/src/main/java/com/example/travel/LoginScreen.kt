@@ -94,11 +94,8 @@ fun LoginScreen(
 
     // Main Mode: true = OTP mode, false = Traditional (Email/Password & Google)
     var isOtpPortalMode by remember { mutableStateOf(true) }
-    // Tab within OTP mode: true = LOGIN, false = REGISTER
-    var isOtpLoginTab by remember { mutableStateOf(true) }
-    
-    // Tab within Traditional mode: true = LOGIN, false = REGISTER
-    var isTradLoginTab by remember { mutableStateOf(true) }
+    // true = LOGIN tab, false = SIGNUP tab
+    var isLoginTab by remember { mutableStateOf(true) }
 
     // Common Inputs
     var nameInput by remember { mutableStateOf("") }
@@ -222,7 +219,7 @@ fun LoginScreen(
                 )
             }
 
-            // Top level selector between OTP portal & password portal
+            // Top level header selector showing "Login"
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -230,44 +227,23 @@ fun LoginScreen(
                     .clip(RoundedCornerShape(8.dp))
                     .background(MaterialTheme.colorScheme.surfaceContainerHigh)
                     .padding(4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.Center
             ) {
-                Button(
-                    onClick = {
-                        isOtpPortalMode = true
-                        errorMessage = ""
-                        successMessage = ""
-                        showOtpField = false
-                        otpCodeInput = ""
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isOtpPortalMode) MaterialTheme.colorScheme.primary else Color.Transparent,
-                        contentColor = if (isOtpPortalMode) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                    ),
-                    modifier = Modifier.weight(1f).fillMaxHeight(),
-                    shape = RoundedCornerShape(6.dp),
-                    contentPadding = PaddingValues(0.dp)
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(MaterialTheme.colorScheme.primary),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text("OTP ACCESS", fontFamily = FontFamily.Monospace, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                }
-
-                Button(
-                    onClick = {
-                        isOtpPortalMode = false
-                        errorMessage = ""
-                        successMessage = ""
-                        showOtpField = false
-                        otpCodeInput = ""
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (!isOtpPortalMode) MaterialTheme.colorScheme.primary else Color.Transparent,
-                        contentColor = if (!isOtpPortalMode) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                    ),
-                    modifier = Modifier.weight(1f).fillMaxHeight(),
-                    shape = RoundedCornerShape(6.dp),
-                    contentPadding = PaddingValues(0.dp)
-                ) {
-                    Text("PASSWORDS", fontFamily = FontFamily.Monospace, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = "LOGIN",
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    )
                 }
             }
 
@@ -282,21 +258,20 @@ fun LoginScreen(
                     modifier = Modifier.padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // Portal Specific Header Tabs (LOGIN vs REGISTER)
+                    // Two sub-tabs: LOGIN vs SIGNUP
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(20.dp)
                     ) {
-                        val isLogin = if (isOtpPortalMode) isOtpLoginTab else isTradLoginTab
                         Text(
                             text = "LOG IN",
-                            color = if (isLogin) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (isLoginTab) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp,
                             fontFamily = FontFamily.Monospace,
                             modifier = Modifier
                                 .clickable {
-                                    if (isOtpPortalMode) isOtpLoginTab = true else isTradLoginTab = true
+                                    isLoginTab = true
                                     errorMessage = ""
                                     successMessage = ""
                                     showOtpField = false
@@ -305,14 +280,14 @@ fun LoginScreen(
                                 .padding(vertical = 4.dp)
                         )
                         Text(
-                            text = "REGISTER",
-                            color = if (!isLogin) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            text = "SIGN UP",
+                            color = if (!isLoginTab) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp,
                             fontFamily = FontFamily.Monospace,
                             modifier = Modifier
                                 .clickable {
-                                    if (isOtpPortalMode) isOtpLoginTab = false else isTradLoginTab = false
+                                    isLoginTab = false
                                     errorMessage = ""
                                     successMessage = ""
                                     showOtpField = false
@@ -320,6 +295,54 @@ fun LoginScreen(
                                 }
                                 .padding(vertical = 4.dp)
                         )
+                    }
+
+                    // Selector for OTP ACCESS vs PASSWORD under the sub-tabs
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(36.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .padding(2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                isOtpPortalMode = true
+                                errorMessage = ""
+                                successMessage = ""
+                                showOtpField = false
+                                otpCodeInput = ""
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isOtpPortalMode) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                contentColor = if (isOtpPortalMode) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                            ),
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
+                            shape = RoundedCornerShape(6.dp),
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            Text("OTP ACCESS", fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                        }
+                        Button(
+                            onClick = {
+                                isOtpPortalMode = false
+                                errorMessage = ""
+                                successMessage = ""
+                                showOtpField = false
+                                otpCodeInput = ""
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (!isOtpPortalMode) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                contentColor = if (!isOtpPortalMode) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                            ),
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
+                            shape = RoundedCornerShape(6.dp),
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            Text("PASSWORD", fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                        }
                     }
 
                     // Dynamic error / success banners
@@ -347,7 +370,7 @@ fun LoginScreen(
                         // ==========================================
                         // OTP PORTAL MODE (LOGIN / REGISTER)
                         // ==========================================
-                        if (isOtpLoginTab) {
+                        if (isLoginTab) {
                             // OTP LOGIN TAB
                             if (!showOtpField) {
                                 Text(
@@ -692,7 +715,7 @@ fun LoginScreen(
                         // ==========================================
                         // TRADITIONAL PORTAL MODE
                         // ==========================================
-                        if (isTradLoginTab) {
+                        if (isLoginTab) {
                             OutlinedTextField(
                                 value = emailInput,
                                 onValueChange = { emailInput = it },
