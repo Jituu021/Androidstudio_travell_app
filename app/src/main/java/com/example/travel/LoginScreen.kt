@@ -56,7 +56,7 @@ suspend fun sendEmailOtp(toEmail: String, otp: String): Boolean = withContext(Di
 
         val jsonPayload = """
             {
-                "sender": { "name": "Travel Buddy Verification", "email": "verification@travelbuddy.in" },
+                "sender": { "name": "Travel Buddy Verification", "email": "guest.travelbuddy@gmail.com" },
                 "to": [{ "email": "$toEmail" }],
                 "subject": "Travel Buddy OTP Verification Code",
                 "htmlContent": "<html><body style='font-family: sans-serif; padding: 20px; background-color: #f9f9f9;'><div style='max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; border: 1px solid #e3e3e3;'><h2 style='color: #2979FF;'>Travel Buddy Security Portal</h2><p>Here is your one-time verification passcode (OTP) to authenticate your account:</p><p style='font-size: 28px; font-weight: bold; color: #2979FF; background: #f0f4ff; padding: 10px; text-align: center; border-radius: 4px; letter-spacing: 4px;'>$otp</p><p>This code is valid for 10 minutes. If you did not request this code, please ignore this email.</p><br><p>Best regards,<br>The Travel Buddy Team</p></div></body></html>"
