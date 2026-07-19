@@ -38,7 +38,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-suspend fun sendEmailOtp(toEmail: String, otp: String): Boolean = withContext(Dispatchers.IO) {
+suspend fun sendEmailOtp(toEmail: String, otp: String): String = withContext(Dispatchers.IO) {
     try {
         val url = URL("https://api.brevo.com/v3/smtp/email")
         val conn = url.openConnection() as HttpURLConnection
@@ -56,7 +56,7 @@ suspend fun sendEmailOtp(toEmail: String, otp: String): Boolean = withContext(Di
 
         val jsonPayload = """
             {
-                "sender": { "name": "Travel Buddy Verification", "email": "guest.travelbuddy@gmail.com" },
+                "sender": { "name": "Travel Buddy Verification", "email": "travelsupport@travelbuddy.in" },
                 "to": [{ "email": "$toEmail" }],
                 "subject": "Travel Buddy OTP Verification Code",
                 "htmlContent": "<html><body style='font-family: sans-serif; padding: 20px; background-color: #f9f9f9;'><div style='max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; border: 1px solid #e3e3e3;'><h2 style='color: #2979FF;'>Travel Buddy Security Portal</h2><p>Here is your one-time verification passcode (OTP) to authenticate your account:</p><p style='font-size: 28px; font-weight: bold; color: #2979FF; background: #f0f4ff; padding: 10px; text-align: center; border-radius: 4px; letter-spacing: 4px;'>$otp</p><p>This code is valid for 10 minutes. If you did not request this code, please ignore this email.</p><br><p>Best regards,<br>The Travel Buddy Team</p></div></body></html>"
@@ -71,15 +71,15 @@ suspend fun sendEmailOtp(toEmail: String, otp: String): Boolean = withContext(Di
         val responseCode = conn.responseCode
         if (responseCode in 200..299) {
             Log.d("EmailSender", "Email sent successfully to $toEmail: Response $responseCode")
-            true
+            "SUCCESS"
         } else {
             val errStream = conn.errorStream?.bufferedReader()?.readText() ?: ""
             Log.e("EmailSender", "Failed to send email to $toEmail: Response $responseCode. Error: $errStream")
-            false
+            "HTTP $responseCode: $errStream"
         }
     } catch (e: Exception) {
         Log.e("EmailSender", "Exception sending email to $toEmail", e)
-        false
+        e.localizedMessage ?: "Unknown connection error"
     }
 }
 
@@ -388,18 +388,18 @@ fun LoginScreen(
                                             generatedOtp = code
                                             
                                             // Send actual email OTP
-                                            val emailSent = sendEmailOtp(existing.email, code)
+                                            val emailResult = sendEmailOtp(existing.email, code)
                                             
                                             isSendingOtp = false
                                             showOtpField = true
                                             otpTimer = 60
                                             
-                                            if (emailSent) {
+                                            if (emailResult == "SUCCESS") {
                                                 successMessage = "OTP sent to registered email ${existing.email}!"
                                                 Toast.makeText(context, "Verification code sent to your email: ${existing.email}", Toast.LENGTH_LONG).show()
                                             } else {
-                                                errorMessage = "Could not deliver actual email. Using simulated OTP fallback."
-                                                Toast.makeText(context, "SMTP error. Fallback login code: $code", Toast.LENGTH_LONG).show()
+                                                errorMessage = "Mail Error: $emailResult. Using simulated OTP fallback."
+                                                Toast.makeText(context, "SMTP failure. Fallback login code: $code", Toast.LENGTH_LONG).show()
                                             }
                                         }
                                     },
@@ -599,17 +599,17 @@ fun LoginScreen(
                                             generatedOtp = code
                                             
                                             // Send actual email OTP
-                                            val emailSent = sendEmailOtp(emailInput.trim(), code)
+                                            val emailResult = sendEmailOtp(emailInput.trim(), code)
                                             
                                             isSendingOtp = false
                                             showOtpField = true
                                             otpTimer = 60
                                             
-                                            if (emailSent) {
+                                            if (emailResult == "SUCCESS") {
                                                 successMessage = "Verification OTP sent to $emailInput!"
                                                 Toast.makeText(context, "OTP sent to your email ID! Check your inbox.", Toast.LENGTH_LONG).show()
                                             } else {
-                                                errorMessage = "Could not deliver actual email. Using simulated OTP fallback."
+                                                errorMessage = "Mail Error: $emailResult. Using simulated OTP fallback."
                                                 Toast.makeText(context, "SMTP failure. Fallback OTP code: $code", Toast.LENGTH_LONG).show()
                                             }
                                         }
