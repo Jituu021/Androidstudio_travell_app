@@ -15,11 +15,28 @@ data class User(
     val isAdmin: Boolean
 )
 
+data class TripNote(
+    val id: Int,
+    val userId: Int,
+    val title: String,
+    val content: String,
+    val timestamp: String
+)
+
+data class TravelExpense(
+    val id: Int,
+    val userId: Int,
+    val amount: Double,
+    val category: String, // Food, Fuel, Hotel, Shopping
+    val description: String,
+    val timestamp: String
+)
+
 class TravelDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION) {
 
     companion object {
         private const val DATABASE_NAME = "travel_buddy.db"
-        private const val DATABASE_VERSION = 2
+        private const val DATABASE_VERSION = 3
 
         const val TABLE_USERS = "users"
         const val COLUMN_ID = "id"
@@ -30,6 +47,23 @@ class TravelDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABAS
         const val COLUMN_HOME_LOCATION = "home_location"
         const val COLUMN_TRAVEL_FREQUENCY = "travel_frequency"
         const val COLUMN_IS_ADMIN = "is_admin"
+
+        // Trip Notes
+        const val TABLE_NOTES = "trip_notes"
+        const val COLUMN_NOTE_ID = "id"
+        const val COLUMN_NOTE_USER_ID = "user_id"
+        const val COLUMN_NOTE_TITLE = "title"
+        const val COLUMN_NOTE_CONTENT = "content"
+        const val COLUMN_NOTE_TIMESTAMP = "timestamp"
+
+        // Travel Expenses
+        const val TABLE_EXPENSES = "travel_expenses"
+        const val COLUMN_EXPENSE_ID = "id"
+        const val COLUMN_EXPENSE_USER_ID = "user_id"
+        const val COLUMN_EXPENSE_AMOUNT = "amount"
+        const val COLUMN_EXPENSE_CATEGORY = "category"
+        const val COLUMN_EXPENSE_DESC = "description"
+        const val COLUMN_EXPENSE_TIMESTAMP = "timestamp"
     }
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -47,6 +81,29 @@ class TravelDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABAS
         """.trimIndent()
         db.execSQL(createTableQuery)
 
+        val createNotesQuery = """
+            CREATE TABLE $TABLE_NOTES (
+                $COLUMN_NOTE_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+                $COLUMN_NOTE_USER_ID INTEGER,
+                $COLUMN_NOTE_TITLE TEXT,
+                $COLUMN_NOTE_CONTENT TEXT,
+                $COLUMN_NOTE_TIMESTAMP TEXT
+            )
+        """.trimIndent()
+        db.execSQL(createNotesQuery)
+
+        val createExpensesQuery = """
+            CREATE TABLE $TABLE_EXPENSES (
+                $COLUMN_EXPENSE_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+                $COLUMN_EXPENSE_USER_ID INTEGER,
+                $COLUMN_EXPENSE_AMOUNT REAL,
+                $COLUMN_EXPENSE_CATEGORY TEXT,
+                $COLUMN_EXPENSE_DESC TEXT,
+                $COLUMN_EXPENSE_TIMESTAMP TEXT
+            )
+        """.trimIndent()
+        db.execSQL(createExpensesQuery)
+
         // Seed default admin account
         val adminValues = ContentValues().apply {
             put(COLUMN_USERNAME, "Admin")
@@ -62,6 +119,8 @@ class TravelDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABAS
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         db.execSQL("DROP TABLE IF EXISTS $TABLE_USERS")
+        db.execSQL("DROP TABLE IF EXISTS $TABLE_NOTES")
+        db.execSQL("DROP TABLE IF EXISTS $TABLE_EXPENSES")
         onCreate(db)
     }
 
@@ -183,9 +242,91 @@ class TravelDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABAS
         return list
     }
 
+    // --- TRIP NOTES METHODS ---
+    fun addTripNote(userId: Int, title: String, content: String, timestamp: String): Boolean {
+        val db = this.writableDatabase
+        val values = ContentValues().apply {
+            put(COLUMN_NOTE_USER_ID, userId)
+            put(COLUMN_NOTE_TITLE, title)
+            put(COLUMN_NOTE_CONTENT, content)
+            put(COLUMN_NOTE_TIMESTAMP, timestamp)
+        }
+        val result = db.insert(TABLE_NOTES, null, values)
+        return result != -1L
+    }
+
+    fun getTripNotes(userId: Int): List<TripNote> {
+        val list = mutableListOf<TripNote>()
+        val db = this.readableDatabase
+        val cursor = db.rawQuery(
+            "SELECT * FROM $TABLE_NOTES WHERE $COLUMN_NOTE_USER_ID = ? ORDER BY $COLUMN_NOTE_ID DESC",
+            arrayOf(userId.toString())
+        )
+        if (cursor.moveToFirst()) {
+            do {
+                val id = cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_NOTE_ID))
+                val title = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_NOTE_TITLE))
+                val content = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_NOTE_CONTENT))
+                val time = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_NOTE_TIMESTAMP))
+                list.add(TripNote(id, userId, title, content, time))
+            } while (cursor.moveToNext())
+        }
+        cursor.close()
+        return list
+    }
+
+    fun deleteTripNote(noteId: Int): Boolean {
+        val db = this.writableDatabase
+        val result = db.delete(TABLE_NOTES, "$COLUMN_NOTE_ID = ?", arrayOf(noteId.toString()))
+        return result > 0
+    }
+
+    // --- EXPENSES METHODS ---
+    fun addExpense(userId: Int, amount: Double, category: String, description: String, timestamp: String): Boolean {
+        val db = this.writableDatabase
+        val values = ContentValues().apply {
+            put(COLUMN_EXPENSE_USER_ID, userId)
+            put(COLUMN_EXPENSE_AMOUNT, amount)
+            put(COLUMN_EXPENSE_CATEGORY, category)
+            put(COLUMN_EXPENSE_DESC, description)
+            put(COLUMN_EXPENSE_TIMESTAMP, timestamp)
+        }
+        val result = db.insert(TABLE_EXPENSES, null, values)
+        return result != -1L
+    }
+
+    fun getExpenses(userId: Int): List<TravelExpense> {
+        val list = mutableListOf<TravelExpense>()
+        val db = this.readableDatabase
+        val cursor = db.rawQuery(
+            "SELECT * FROM $TABLE_EXPENSES WHERE $COLUMN_EXPENSE_USER_ID = ? ORDER BY $COLUMN_EXPENSE_ID DESC",
+            arrayOf(userId.toString())
+        )
+        if (cursor.moveToFirst()) {
+            do {
+                val id = cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_ID))
+                val amount = cursor.getDouble(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_AMOUNT))
+                val category = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_CATEGORY))
+                val desc = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_DESC))
+                val time = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_TIMESTAMP))
+                list.add(TravelExpense(id, userId, amount, category, desc, time))
+            } while (cursor.moveToNext())
+        }
+        cursor.close()
+        return list
+    }
+
+    fun deleteExpense(expenseId: Int): Boolean {
+        val db = this.writableDatabase
+        val result = db.delete(TABLE_EXPENSES, "$COLUMN_EXPENSE_ID = ?", arrayOf(expenseId.toString()))
+        return result > 0
+    }
+
     fun clearDatabase(): Boolean {
         val db = this.writableDatabase
         db.execSQL("DELETE FROM $TABLE_USERS WHERE $COLUMN_USERNAME != 'Admin'")
+        db.execSQL("DELETE FROM $TABLE_NOTES")
+        db.execSQL("DELETE FROM $TABLE_EXPENSES")
         return true
     }
 }

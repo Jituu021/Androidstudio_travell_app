@@ -36,6 +36,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.platform.LocalContext
@@ -45,8 +47,11 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
+import java.util.Calendar
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.math.acos
+import kotlin.math.tan
 
 
 // Hotel/Destination data class
@@ -141,9 +146,69 @@ val initialHotels = listOf(
     )
 )
 
+fun calculateSunriseSunset(lat: Double, lon: Double): Pair<String, String> {
+    val cal = Calendar.getInstance()
+    val dayOfYear = cal.get(Calendar.DAY_OF_YEAR)
+    
+    // Convert to radians
+    val latRad = Math.toRadians(lat)
+    
+    // Solar declination (approximate formula)
+    val declination = 0.409 * sin(2 * Math.PI * (284 + dayOfYear) / 365.0)
+    
+    // Hour angle at sunrise/sunset (zenith angle is 90.83 deg)
+    val cosH = (sin(Math.toRadians(-0.83)) - sin(latRad) * sin(declination)) / (cos(latRad) * cos(declination))
+    
+    val sunriseTime: String
+    val sunsetTime: String
+    
+    if (cosH > 1.0) {
+        // Polar night
+        sunriseTime = "--:--"
+        sunsetTime = "--:--"
+    } else if (cosH < -1.0) {
+        // Midnight sun
+        sunriseTime = "00:00"
+        sunsetTime = "23:59"
+    } else {
+        val h = Math.toDegrees(acos(cosH))
+        val hourAngleDiff = h / 15.0
+        
+        // Solar noon approximate timezone calculation
+        val timezoneOffset = cal.timeZone.getOffset(cal.timeInMillis) / 3600000.0
+        val solarNoon = 12.0 - (lon / 15.0) + timezoneOffset
+        
+        val sunriseHour = solarNoon - hourAngleDiff
+        val sunsetHour = solarNoon + hourAngleDiff
+        
+        fun formatHour(hourValue: Double): String {
+            var rawHour = hourValue
+            while (rawHour < 0.0) rawHour += 24.0
+            while (rawHour >= 24.0) rawHour -= 24.0
+            val hours = rawHour.toInt()
+            val mins = ((rawHour - hours) * 60).toInt()
+            
+            // Format to 12 hour AM/PM style for best user experience
+            val isPm = hours >= 12
+            val displayHour = when {
+                hours == 0 -> 12
+                hours > 12 -> hours - 12
+                else -> hours
+            }
+            val amPm = if (isPm) "PM" else "AM"
+            return String.format("%02d:%02d %s", displayHour, mins, amPm)
+        }
+        
+        sunriseTime = formatHour(sunriseHour)
+        sunsetTime = formatHour(sunsetHour)
+    }
+    
+    return Pair(sunriseTime, sunsetTime)
+}
+
 // Define tabs
 enum class Tab {
-    HOME, MAPS, TRANSLATE, PROFILE
+    HOME, MAPS, TRANSLATE, PLANNER, PROFILE
 }
 
 @Composable
@@ -249,6 +314,8 @@ fun NexusGuideScreen(
                     Tab.HOME -> HomeScreen(
                         coordinates = coordinates,
                         userLocationName = userLocationName,
+                        userLat = userLat,
+                        userLon = userLon,
                         onNavigateToMaps = { activeTab = Tab.MAPS },
                         onTriggerEmergency = { showEmergencyDialog = true },
                         onRequestLocation = {
@@ -274,6 +341,7 @@ fun NexusGuideScreen(
                         }
                     )
                     Tab.TRANSLATE -> TranslateScreen()
+                    Tab.PLANNER -> TripPlannerScreen(dbHelper = dbHelper, userId = userSession.id)
                     Tab.PROFILE -> ProfileScreen(
                         userLocationName = userLocationName,
                         coordinates = coordinates,
@@ -399,6 +467,15 @@ fun NexusGuideScreen(
                                 isActive = activeTab == Tab.TRANSLATE,
                                 onClick = {
                                     activeTab = Tab.TRANSLATE
+                                    isDrawerOpen = false
+                                }
+                            )
+                            DrawerNavItem(
+                                icon = "📓",
+                                label = "Trip Diary & Budget",
+                                isActive = activeTab == Tab.PLANNER,
+                                onClick = {
+                                    activeTab = Tab.PLANNER
                                     isDrawerOpen = false
                                 }
                             )
@@ -723,6 +800,8 @@ fun TabItem(
 fun HomeScreen(
     coordinates: String,
     userLocationName: String,
+    userLat: Double,
+    userLon: Double,
     onNavigateToMaps: () -> Unit,
     onTriggerEmergency: () -> Unit,
     onRequestLocation: () -> Unit
@@ -746,6 +825,62 @@ fun HomeScreen(
     ) {
         // Hero Card
         HeroCard(userLocationName = userLocationName, coordinates = coordinates)
+
+        // Sunrise & Sunset Card
+        val (sunrise, sunset) = calculateSunriseSunset(userLat, userLon)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "🌅 SOLAR TELEMETRY (SUNRISE & SUNSET)",
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("🌅", fontSize = 24.sp)
+                        Column {
+                            Text("Sunrise", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(sunrise, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
+                        }
+                    }
+                    Box(
+                        modifier = Modifier
+                            .height(30.dp)
+                            .width(1.5.dp)
+                            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.weight(1f).padding(start = 16.dp)
+                    ) {
+                        Text("🌇", fontSize = 24.sp)
+                        Column {
+                            Text("Sunset", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(sunset, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
+                        }
+                    }
+                }
+            }
+        }
 
         // Action 0: Sync Location via GPS
         FullWidthActionButton(
@@ -1410,6 +1545,7 @@ fun MapsScreen(
     var searchLocQuery by remember { mutableStateOf("") }
     var showSearchResults by remember { mutableStateOf(false) }
     var isNavigatingRoute by remember { mutableStateOf(true) } // Auto-route when hotel is active
+    var activeEssentialFilter by remember { mutableStateOf<String?>(null) }
     
     // Dialog Review States
     var showAddReviewDialog by remember { mutableStateOf(false) }
@@ -1817,6 +1953,32 @@ fun MapsScreen(
                                     drawCircle(Color.White, radius = 2.dp.toPx() * zoomLevel, center = Offset(pos.x, pos.y - 12.dp.toPx() * zoomLevel))
                                 }
 
+                                // 5.5 Draw Nearby Essential Pin if selected
+                                activeEssentialFilter?.let { filter ->
+                                    val offsetLat = when (filter) {
+                                        "ATM" -> 0.0018
+                                        "Pharmacy" -> -0.0012
+                                        "Petrol Pump" -> 0.0028
+                                        "Public Toilet" -> -0.0022
+                                        else -> 0.0008 // Drinking Water
+                                    }
+                                    val offsetLon = when (filter) {
+                                        "ATM" -> -0.0015
+                                        "Pharmacy" -> 0.0022
+                                        "Petrol Pump" -> 0.0018
+                                        "Public Toilet" -> -0.0014
+                                        else -> 0.0012 // Drinking Water
+                                    }
+                                    val essentialLat = userLat + offsetLat
+                                    val essentialLon = userLon + offsetLon
+                                    val pos = mapCoordsToPixels(essentialLat, essentialLon, centerLat, centerLon, w, h, zoomLevel, mapOffsetX, mapOffsetY)
+                                    
+                                    // Green/Emerald map pin dot
+                                    drawCircle(Color(0xFF2E7D32).copy(alpha = 0.3f), radius = 14.dp.toPx() * zoomLevel, center = pos)
+                                    drawCircle(Color(0xFF2E7D32), radius = 7.dp.toPx() * zoomLevel, center = pos)
+                                    drawCircle(Color.White, radius = 3.dp.toPx() * zoomLevel, center = pos)
+                                }
+
                                 // 6. Draw User Location Dot
                                 val userPos = mapCoordsToPixels(userLat, userLon, centerLat, centerLon, w, h, zoomLevel, mapOffsetX, mapOffsetY)
                                 // Pulsing cyan circle
@@ -1860,11 +2022,44 @@ fun MapsScreen(
                                     .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f), RoundedCornerShape(8.dp))
                                     .clip(RoundedCornerShape(8.dp)),
                                 singleLine = true,
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                    unfocusedBorderColor = Color.Transparent
+                             )
+
+                            // Horizontal scrolling category filter chips
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                val essentials = listOf("ATM", "Pharmacy", "Petrol Pump", "Public Toilet", "Drinking Water")
+                                val emojis = mapOf(
+                                    "ATM" to "🏧",
+                                    "Pharmacy" to "💊",
+                                    "Petrol Pump" to "⛽",
+                                    "Public Toilet" to "🚻",
+                                    "Drinking Water" to "💧"
                                 )
-                            )
+                                essentials.forEach { item ->
+                                    val isSelected = activeEssentialFilter == item
+                                    AssistChip(
+                                        onClick = {
+                                            activeEssentialFilter = if (isSelected) null else item
+                                        },
+                                        label = {
+                                            Text(
+                                                text = "${emojis[item]} $item",
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        },
+                                        colors = AssistChipDefaults.assistChipColors(
+                                            containerColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                                            labelColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                                        ),
+                                        shape = RoundedCornerShape(16.dp)
+                                    )
+                                }
+                            }
 
                             // Search suggestions drawer dropdown
                             if (showSearchResults) {
@@ -1933,6 +2128,78 @@ fun MapsScreen(
                                 mapOffsetX = 0f
                                 mapOffsetY = 0f
                                 zoomLevel = 1.8f
+                            }
+                        }
+
+                        // Overlay: Active Essential highlight Card
+                        activeEssentialFilter?.let { filter ->
+                            val label = when (filter) {
+                                "ATM" -> "SBI ATM - Mall Road"
+                                "Pharmacy" -> "Apollo Pharmacy - Open 24/7"
+                                "Petrol Pump" -> "HP Petrol Station"
+                                "Public Toilet" -> "Public Restroom"
+                                else -> "Clean Drinking Water Point"
+                            }
+                            val details = when (filter) {
+                                "ATM" -> "Status: Online | 220m away | No withdrawal fees"
+                                "Pharmacy" -> "Status: Open | 150m away | Essential meds stocked"
+                                "Petrol Pump" -> "Status: Open | 320m away | Fuel & Air pump active"
+                                "Public Toilet" -> "Status: Clean | 180m away | Hygiene check OK"
+                                else -> "Status: Active | 80m away | Purified cold water"
+                            }
+                            val emojis = mapOf(
+                                "ATM" to "🏧",
+                                "Pharmacy" to "💊",
+                                "Petrol Pump" to "⛽",
+                                "Public Toilet" to "🚻",
+                                "Drinking Water" to "💧"
+                            )
+                            Card(
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .padding(bottom = if (isNavigatingRoute) 115.dp else 12.dp, start = 8.dp, end = 8.dp)
+                                    .fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)),
+                                shape = RoundedCornerShape(10.dp),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(emojis[filter] ?: "📍", fontSize = 20.sp)
+                                    }
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = label,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.sp,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Text(
+                                            text = details,
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    Text(
+                                        text = "✕",
+                                        modifier = Modifier
+                                            .clickable { activeEssentialFilter = null }
+                                            .padding(4.dp),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                         }
 
@@ -4271,6 +4538,376 @@ fun DrawerActionItem(
             fontSize = 13.sp,
             fontFamily = FontFamily.SansSerif
         )
+    }
+}
+
+@Composable
+fun TripPlannerScreen(dbHelper: TravelDatabaseHelper, userId: Int) {
+    var plannerSubTab by remember { mutableStateOf(0) } // 0 = Notes, 1 = Expenses
+
+    // Notes States
+    var noteTitle by remember { mutableStateOf("") }
+    var noteContent by remember { mutableStateOf("") }
+    val notesList = remember { mutableStateListOf<TripNote>() }
+
+    // Expenses States
+    var expenseAmount by remember { mutableStateOf("") }
+    var expenseCategory by remember { mutableStateOf("Food") }
+    var expenseDesc by remember { mutableStateOf("") }
+    val expensesList = remember { mutableStateListOf<TravelExpense>() }
+
+    val context = LocalContext.current
+
+    // Load initial data
+    LaunchedEffect(userId) {
+        notesList.clear()
+        notesList.addAll(dbHelper.getTripNotes(userId))
+        expensesList.clear()
+        expensesList.addAll(dbHelper.getExpenses(userId))
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Planner Header Tabs
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(42.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                .padding(3.dp),
+            horizontalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            val tabs = listOf("📓 DIARY NOTES", "💰 EXPENSE TRACKER")
+            tabs.forEachIndexed { index, title ->
+                Button(
+                    onClick = { plannerSubTab = index },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (plannerSubTab == index) MaterialTheme.colorScheme.primary else Color.Transparent,
+                        contentColor = if (plannerSubTab == index) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    shape = RoundedCornerShape(6.dp),
+                    contentPadding = PaddingValues(0.dp)
+                ) {
+                    Text(title, fontFamily = FontFamily.Monospace, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+
+        if (plannerSubTab == 0) {
+            // ==========================================
+            // DIARY NOTES SECTION
+            // ==========================================
+            Text(
+                text = "WRITE TRAVEL MEMORIES (OFFLINE)",
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            // New Note Form Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedTextField(
+                        value = noteTitle,
+                        onValueChange = { noteTitle = it },
+                        placeholder = { Text("Title (e.g., Solang valley paragliding)", fontSize = 12.sp) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = noteContent,
+                        onValueChange = { noteContent = it },
+                        placeholder = { Text("Write your travel memories here...", fontSize = 12.sp) },
+                        modifier = Modifier.fillMaxWidth().height(90.dp),
+                        maxLines = 4
+                    )
+                    Button(
+                        onClick = {
+                            if (noteTitle.trim().isEmpty() || noteContent.trim().isEmpty()) {
+                                Toast.makeText(context, "Fields cannot be empty", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                            val dateStr = java.text.SimpleDateFormat("dd MMM yyyy, hh:mm a", java.util.Locale.US)
+                                .format(java.util.Date())
+                            val success = dbHelper.addTripNote(userId, noteTitle.trim(), noteContent.trim(), dateStr)
+                            if (success) {
+                                noteTitle = ""
+                                noteContent = ""
+                                notesList.clear()
+                                notesList.addAll(dbHelper.getTripNotes(userId))
+                                Toast.makeText(context, "Memory note saved offline!", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, "Error saving note", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.tertiary,
+                            contentColor = MaterialTheme.colorScheme.onTertiary
+                        ),
+                        modifier = Modifier.fillMaxWidth().height(38.dp),
+                        shape = RoundedCornerShape(6.dp),
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Text("SAVE DIARY NOTE", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                    }
+                }
+            }
+
+            // Notes List
+            Column(
+                modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (notesList.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(30.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("No memory notes saved yet.\nYour logs are kept offline here.", fontSize = 12.sp, color = Color.Gray, textAlign = TextAlign.Center)
+                    }
+                } else {
+                    notesList.forEach { note ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(note.title, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, fontSize = 13.sp)
+                                    Text(
+                                        text = "✕",
+                                        color = Color.Red,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier
+                                            .clickable {
+                                                dbHelper.deleteTripNote(note.id)
+                                                notesList.clear()
+                                                notesList.addAll(dbHelper.getTripNotes(userId))
+                                                Toast.makeText(context, "Note deleted", Toast.LENGTH_SHORT).show()
+                                            }
+                                            .padding(4.dp)
+                                    )
+                                }
+                                Text(note.timestamp, fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), fontFamily = FontFamily.Monospace)
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(note.content, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface, lineHeight = 16.sp)
+                            }
+                        }
+                    }
+                }
+            }
+
+        } else {
+            // ==========================================
+            // EXPENSE TRACKER SECTION
+            // ==========================================
+            Text(
+                text = "TRACK TRAVEL BUDGET (OFFLINE)",
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            // Total Budget Stats Card
+            val totalExpense = expensesList.sumOf { it.amount }
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text("TOTAL TRIP EXPENSES", fontSize = 9.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        Text(String.format(Locale.US, "₹%,.2f", totalExpense), fontSize = 24.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
+                    }
+                    Text("💸", fontSize = 36.sp)
+                }
+            }
+
+            // Input Form Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = expenseAmount,
+                            onValueChange = { expenseAmount = it },
+                            placeholder = { Text("Amount (₹)", fontSize = 12.sp) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f),
+                            singleLine = true
+                        )
+                        OutlinedTextField(
+                            value = expenseDesc,
+                            onValueChange = { expenseDesc = it },
+                            placeholder = { Text("Description (e.g. Dinner)", fontSize = 12.sp) },
+                            modifier = Modifier.weight(1.5f),
+                            singleLine = true
+                        )
+                    }
+
+                    // Category Selector
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        val categories = listOf("Food", "Fuel", "Hotel", "Shopping")
+                        val icons = mapOf("Food" to "🍔", "Fuel" to "⛽", "Hotel" to "🏨", "Shopping" to "🛍")
+                        categories.forEach { cat ->
+                            val isSelected = expenseCategory == cat
+                            Button(
+                                onClick = { expenseCategory = cat },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                                    contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                ),
+                                shape = RoundedCornerShape(6.dp),
+                                modifier = Modifier.weight(1f).height(32.dp),
+                                contentPadding = PaddingValues(0.dp)
+                            ) {
+                                Text("${icons[cat]} $cat", fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+
+                    Button(
+                        onClick = {
+                            val amt = expenseAmount.toDoubleOrNull()
+                            if (amt == null || amt <= 0.0) {
+                                Toast.makeText(context, "Please enter a valid amount", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                            if (expenseDesc.trim().isEmpty()) {
+                                Toast.makeText(context, "Please enter a description", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                            val dateStr = java.text.SimpleDateFormat("dd MMM, hh:mm a", java.util.Locale.US)
+                                .format(java.util.Date())
+                            val success = dbHelper.addExpense(userId, amt, expenseCategory, expenseDesc.trim(), dateStr)
+                            if (success) {
+                                expenseAmount = ""
+                                expenseDesc = ""
+                                expensesList.clear()
+                                expensesList.addAll(dbHelper.getExpenses(userId))
+                                Toast.makeText(context, "Expense logged offline!", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, "Error logging expense", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.tertiary,
+                            contentColor = MaterialTheme.colorScheme.onTertiary
+                        ),
+                        modifier = Modifier.fillMaxWidth().height(38.dp),
+                        shape = RoundedCornerShape(6.dp),
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Text("ADD TRIP EXPENSE", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                    }
+                }
+            }
+
+            // Expenses List
+            Column(
+                modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (expensesList.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().padding(30.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("No expenses logged yet.\nKeep track of your budget offline.", fontSize = 12.sp, color = Color.Gray, textAlign = TextAlign.Center)
+                    }
+                } else {
+                    expensesList.forEach { exp ->
+                        val emoji = when (exp.category) {
+                            "Food" -> "🍔"
+                            "Fuel" -> "⛽"
+                            "Hotel" -> "🏨"
+                            else -> "🛍" // Shopping
+                        }
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier.size(36.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(emoji, fontSize = 18.sp)
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(exp.description, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    Text("${exp.category.uppercase()} • ${exp.timestamp}", fontSize = 9.sp, color = Color.Gray, fontFamily = FontFamily.Monospace)
+                                }
+                                Text(
+                                    text = String.format(Locale.US, "₹%,.2f", exp.amount),
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontSize = 13.sp
+                                )
+                                Text(
+                                    text = "✕",
+                                    color = Color.Red,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier
+                                        .clickable {
+                                            dbHelper.deleteExpense(exp.id)
+                                            expensesList.clear()
+                                            expensesList.addAll(dbHelper.getExpenses(userId))
+                                            Toast.makeText(context, "Expense deleted", Toast.LENGTH_SHORT).show()
+                                        }
+                                        .padding(4.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
