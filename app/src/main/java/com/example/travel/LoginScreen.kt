@@ -288,6 +288,7 @@ fun LoginScreen(
                             modifier = Modifier
                                 .clickable {
                                     isLoginTab = false
+                                    isOtpPortalMode = true // Force OTP portal for signup!
                                     errorMessage = ""
                                     successMessage = ""
                                     showOtpField = false
@@ -297,51 +298,53 @@ fun LoginScreen(
                         )
                     }
 
-                    // Selector for OTP ACCESS vs PASSWORD under the sub-tabs
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(36.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .padding(2.dp),
-                        horizontalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        Button(
-                            onClick = {
-                                isOtpPortalMode = true
-                                errorMessage = ""
-                                successMessage = ""
-                                showOtpField = false
-                                otpCodeInput = ""
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isOtpPortalMode) MaterialTheme.colorScheme.primary else Color.Transparent,
-                                contentColor = if (isOtpPortalMode) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                            ),
-                            modifier = Modifier.weight(1f).fillMaxHeight(),
-                            shape = RoundedCornerShape(6.dp),
-                            contentPadding = PaddingValues(0.dp)
+                    // Selector for OTP ACCESS vs PASSWORD under the sub-tabs (only show on LOG IN!)
+                    if (isLoginTab) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(36.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .padding(2.dp),
+                            horizontalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
-                            Text("OTP ACCESS", fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
-                        }
-                        Button(
-                            onClick = {
-                                isOtpPortalMode = false
-                                errorMessage = ""
-                                successMessage = ""
-                                showOtpField = false
-                                otpCodeInput = ""
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (!isOtpPortalMode) MaterialTheme.colorScheme.primary else Color.Transparent,
-                                contentColor = if (!isOtpPortalMode) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                            ),
-                            modifier = Modifier.weight(1f).fillMaxHeight(),
-                            shape = RoundedCornerShape(6.dp),
-                            contentPadding = PaddingValues(0.dp)
-                        ) {
-                            Text("PASSWORD", fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                            Button(
+                                onClick = {
+                                    isOtpPortalMode = true
+                                    errorMessage = ""
+                                    successMessage = ""
+                                    showOtpField = false
+                                    otpCodeInput = ""
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (isOtpPortalMode) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                    contentColor = if (isOtpPortalMode) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                ),
+                                modifier = Modifier.weight(1f).fillMaxHeight(),
+                                shape = RoundedCornerShape(6.dp),
+                                contentPadding = PaddingValues(0.dp)
+                            ) {
+                                Text("OTP ACCESS", fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                            }
+                            Button(
+                                onClick = {
+                                    isOtpPortalMode = false
+                                    errorMessage = ""
+                                    successMessage = ""
+                                    showOtpField = false
+                                    otpCodeInput = ""
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = if (!isOtpPortalMode) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                    contentColor = if (!isOtpPortalMode) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                ),
+                                modifier = Modifier.weight(1f).fillMaxHeight(),
+                                shape = RoundedCornerShape(6.dp),
+                                contentPadding = PaddingValues(0.dp)
+                            ) {
+                                Text("PASSWORD", fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                            }
                         }
                     }
 
@@ -903,7 +906,7 @@ fun LoginScreen(
                         fontSize = 18.sp
                     )
                     Text(
-                        text = "SIGN IN WITH GOOGLE ACCOUNT",
+                        text = if (isLoginTab) "LOG IN WITH GOOGLE" else "SIGN UP WITH GOOGLE",
                         fontWeight = FontWeight.Bold,
                         fontSize = 11.sp,
                         fontFamily = FontFamily.SansSerif
