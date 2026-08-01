@@ -20,7 +20,14 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background,
                 ) {
-                    var currentUser by remember { mutableStateOf<User?>(null) }
+                    val defaultAdmin = remember {
+                        dbHelper.checkEmailLogin("admin@travelbuddy.com", "AdminPassword123")
+                            ?: run {
+                                dbHelper.registerUser("System Admin", "admin@travelbuddy.com", "+919999999999", "AdminPassword123", "Mumbai, India", "Frequently", true)
+                                dbHelper.checkEmailLogin("admin@travelbuddy.com", "AdminPassword123")
+                            }
+                    }
+                    var currentUser by remember { mutableStateOf<User?>(defaultAdmin) }
 
                     if (currentUser == null) {
                         LoginScreen(dbHelper = dbHelper, onLoginSuccess = { user ->

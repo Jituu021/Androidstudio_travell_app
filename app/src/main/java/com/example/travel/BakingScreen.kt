@@ -31,7 +31,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -63,7 +63,7 @@ fun BakingScreen(
     var prompt by rememberSaveable { mutableStateOf(placeholderPrompt) }
     var result by rememberSaveable { mutableStateOf(placeholderResult) }
     val uiState by bakingViewModel.uiState.collectAsState()
-    val resources = LocalResources.current
+    val resources = LocalContext.current.resources
 
     Scaffold { innerPadding ->
         Column(

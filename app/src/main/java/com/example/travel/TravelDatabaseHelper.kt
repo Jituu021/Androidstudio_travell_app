@@ -104,6 +104,83 @@ class TravelDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABAS
         """.trimIndent()
         db.execSQL(createExpensesQuery)
 
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS emergency_contacts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT,
+                phone TEXT,
+                relation TEXT
+            )
+        """.trimIndent())
+
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS favorites (
+                id TEXT PRIMARY KEY,
+                name TEXT,
+                address TEXT,
+                lat REAL,
+                lon REAL,
+                category TEXT
+            )
+        """.trimIndent())
+
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS downloaded_maps (
+                id TEXT PRIMARY KEY,
+                name TEXT,
+                min_lat REAL,
+                max_lat REAL,
+                min_lon REAL,
+                max_lon REAL,
+                size_mb REAL,
+                is_downloaded INTEGER DEFAULT 0
+            )
+        """.trimIndent())
+
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS cached_places (
+                id TEXT PRIMARY KEY,
+                name TEXT,
+                address TEXT,
+                lat REAL,
+                lon REAL,
+                category TEXT,
+                rating REAL,
+                phone TEXT,
+                opening_hours TEXT,
+                website TEXT
+            )
+        """.trimIndent())
+
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS search_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                query TEXT UNIQUE,
+                timestamp INTEGER
+            )
+        """.trimIndent())
+
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS cached_routes (
+                id TEXT PRIMARY KEY,
+                origin_lat REAL,
+                origin_lon REAL,
+                dest_lat REAL,
+                dest_lon REAL,
+                mode TEXT,
+                distance_text TEXT,
+                duration_text TEXT,
+                polyline_json TEXT
+            )
+        """.trimIndent())
+
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS user_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT
+            )
+        """.trimIndent())
+
         // Seed default admin account
         val adminValues = ContentValues().apply {
             put(COLUMN_USERNAME, "Admin")
@@ -147,67 +224,37 @@ class TravelDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABAS
         return result != -1L
     }
 
+    private fun android.database.Cursor.toUser(): User = User(
+        id = getInt(getColumnIndexOrThrow(COLUMN_ID)),
+        username = getString(getColumnIndexOrThrow(COLUMN_USERNAME)),
+        email = getString(getColumnIndexOrThrow(COLUMN_EMAIL)),
+        phone = getString(getColumnIndexOrThrow(COLUMN_PHONE)) ?: "",
+        homeLocation = getString(getColumnIndexOrThrow(COLUMN_HOME_LOCATION)) ?: "",
+        travelFrequency = getString(getColumnIndexOrThrow(COLUMN_TRAVEL_FREQUENCY)) ?: "",
+        isAdmin = getInt(getColumnIndexOrThrow(COLUMN_IS_ADMIN)) == 1
+    )
+
     fun checkEmailLogin(emailOrUsername: String, password: String): User? {
-        val db = this.readableDatabase
-        val query = """
-            SELECT * FROM $TABLE_USERS 
-            WHERE ($COLUMN_EMAIL = ? OR $COLUMN_USERNAME = ?) AND $COLUMN_PASSWORD = ?
-        """.trimIndent()
-        val cursor = db.rawQuery(query, arrayOf(emailOrUsername, emailOrUsername, password))
-        
-        var user: User? = null
-        if (cursor.moveToFirst()) {
-            val id = cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_ID))
-            val username = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_USERNAME))
-            val email = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMAIL))
-            val phone = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PHONE))
-            val home = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_HOME_LOCATION)) ?: ""
-            val freq = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TRAVEL_FREQUENCY)) ?: ""
-            val isAdmin = cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_IS_ADMIN)) == 1
-            user = User(id, username, email, phone, home, freq, isAdmin)
+        val query = "SELECT * FROM $TABLE_USERS WHERE ($COLUMN_EMAIL = ? OR $COLUMN_USERNAME = ?) AND $COLUMN_PASSWORD = ?"
+        return readableDatabase.rawQuery(query, arrayOf(emailOrUsername, emailOrUsername, password)).use { cursor ->
+            if (cursor.moveToFirst()) cursor.toUser() else null
         }
-        cursor.close()
-        return user
     }
 
     fun checkPhoneLogin(phone: String): User? {
-        val db = this.readableDatabase
         val query = "SELECT * FROM $TABLE_USERS WHERE $COLUMN_PHONE = ?"
-        val cursor = db.rawQuery(query, arrayOf(phone))
-        
-        var user: User? = null
-        if (cursor.moveToFirst()) {
-            val id = cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_ID))
-            val username = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_USERNAME))
-            val email = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMAIL))
-            val ph = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PHONE))
-            val home = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_HOME_LOCATION)) ?: ""
-            val freq = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TRAVEL_FREQUENCY)) ?: ""
-            val isAdmin = cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_IS_ADMIN)) == 1
-            user = User(id, username, email, ph, home, freq, isAdmin)
+        return readableDatabase.rawQuery(query, arrayOf(phone)).use { cursor ->
+            if (cursor.moveToFirst()) cursor.toUser() else null
         }
-        cursor.close()
-        return user
     }
 
     fun checkOrCreateGoogleUser(email: String, username: String): User {
-        val db = this.writableDatabase
-        // check if user exists
+        val db = writableDatabase
         val query = "SELECT * FROM $TABLE_USERS WHERE $COLUMN_EMAIL = ?"
-        val cursor = db.rawQuery(query, arrayOf(email))
-        if (cursor.moveToFirst()) {
-            val id = cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_ID))
-            val dbUsername = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_USERNAME))
-            val phone = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PHONE)) ?: ""
-            val home = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_HOME_LOCATION)) ?: ""
-            val freq = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TRAVEL_FREQUENCY)) ?: ""
-            val isAdmin = cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_IS_ADMIN)) == 1
-            cursor.close()
-            return User(id, dbUsername, email, phone, home, freq, isAdmin)
+        db.rawQuery(query, arrayOf(email)).use { cursor ->
+            if (cursor.moveToFirst()) return cursor.toUser()
         }
-        cursor.close()
 
-        // Create new user automatically
         val dummyPhone = "+91" + (9000000000L + (Math.random() * 999999999L).toLong()).toString()
         val values = ContentValues().apply {
             put(COLUMN_USERNAME, username)
@@ -224,21 +271,11 @@ class TravelDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABAS
 
     fun getAllUsers(): List<User> {
         val list = mutableListOf<User>()
-        val db = this.readableDatabase
-        val cursor = db.rawQuery("SELECT * FROM $TABLE_USERS", null)
-        if (cursor.moveToFirst()) {
-            do {
-                val id = cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_ID))
-                val username = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_USERNAME))
-                val email = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EMAIL))
-                val phone = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PHONE)) ?: ""
-                val home = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_HOME_LOCATION)) ?: ""
-                val freq = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TRAVEL_FREQUENCY)) ?: ""
-                val isAdmin = cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_IS_ADMIN)) == 1
-                list.add(User(id, username, email, phone, home, freq, isAdmin))
-            } while (cursor.moveToNext())
+        readableDatabase.rawQuery("SELECT * FROM $TABLE_USERS", null).use { cursor ->
+            while (cursor.moveToNext()) {
+                list.add(cursor.toUser())
+            }
         }
-        cursor.close()
         return list
     }
 
@@ -257,33 +294,31 @@ class TravelDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABAS
 
     fun getTripNotes(userId: Int): List<TripNote> {
         val list = mutableListOf<TripNote>()
-        val db = this.readableDatabase
-        val cursor = db.rawQuery(
-            "SELECT * FROM $TABLE_NOTES WHERE $COLUMN_NOTE_USER_ID = ? ORDER BY $COLUMN_NOTE_ID DESC",
-            arrayOf(userId.toString())
-        )
-        if (cursor.moveToFirst()) {
-            do {
+        val query = "SELECT * FROM $TABLE_NOTES WHERE $COLUMN_NOTE_USER_ID = ? ORDER BY $COLUMN_NOTE_ID DESC"
+        readableDatabase.rawQuery(query, arrayOf(userId.toString())).use { cursor ->
+            while (cursor.moveToNext()) {
                 val id = cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_NOTE_ID))
                 val title = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_NOTE_TITLE))
                 val content = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_NOTE_CONTENT))
                 val time = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_NOTE_TIMESTAMP))
                 list.add(TripNote(id, userId, title, content, time))
-            } while (cursor.moveToNext())
+            }
         }
-        cursor.close()
         return list
     }
 
     fun deleteTripNote(noteId: Int): Boolean {
-        val db = this.writableDatabase
-        val result = db.delete(TABLE_NOTES, "$COLUMN_NOTE_ID = ?", arrayOf(noteId.toString()))
-        return result > 0
+        return writableDatabase.delete(TABLE_NOTES, "$COLUMN_NOTE_ID = ?", arrayOf(noteId.toString())) > 0
     }
 
     // --- EXPENSES METHODS ---
-    fun addExpense(userId: Int, amount: Double, category: String, description: String, timestamp: String): Boolean {
-        val db = this.writableDatabase
+    fun addExpense(
+        userId: Int,
+        amount: Double,
+        category: String,
+        description: String,
+        timestamp: String = java.text.SimpleDateFormat("dd MMM, HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+    ): Boolean {
         val values = ContentValues().apply {
             put(COLUMN_EXPENSE_USER_ID, userId)
             put(COLUMN_EXPENSE_AMOUNT, amount)
@@ -291,28 +326,24 @@ class TravelDatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABAS
             put(COLUMN_EXPENSE_DESC, description)
             put(COLUMN_EXPENSE_TIMESTAMP, timestamp)
         }
-        val result = db.insert(TABLE_EXPENSES, null, values)
-        return result != -1L
+        return writableDatabase.insert(TABLE_EXPENSES, null, values) != -1L
     }
+
+    fun getAllExpenses(): List<TravelExpense> = getExpenses(1)
 
     fun getExpenses(userId: Int): List<TravelExpense> {
         val list = mutableListOf<TravelExpense>()
-        val db = this.readableDatabase
-        val cursor = db.rawQuery(
-            "SELECT * FROM $TABLE_EXPENSES WHERE $COLUMN_EXPENSE_USER_ID = ? ORDER BY $COLUMN_EXPENSE_ID DESC",
-            arrayOf(userId.toString())
-        )
-        if (cursor.moveToFirst()) {
-            do {
+        val query = "SELECT * FROM $TABLE_EXPENSES WHERE $COLUMN_EXPENSE_USER_ID = ? ORDER BY $COLUMN_EXPENSE_ID DESC"
+        readableDatabase.rawQuery(query, arrayOf(userId.toString())).use { cursor ->
+            while (cursor.moveToNext()) {
                 val id = cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_ID))
                 val amount = cursor.getDouble(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_AMOUNT))
                 val category = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_CATEGORY))
                 val desc = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_DESC))
                 val time = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_EXPENSE_TIMESTAMP))
                 list.add(TravelExpense(id, userId, amount, category, desc, time))
-            } while (cursor.moveToNext())
+            }
         }
-        cursor.close()
         return list
     }
 

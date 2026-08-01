@@ -249,15 +249,41 @@ fun LoginScreen(
 
             // Main Card container for form
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .wrapContentHeight(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
+                ),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    // INSTANT BYPASS BUTTON
+                    Button(
+                        onClick = {
+                            var adminUser = dbHelper.checkEmailLogin("admin@travelbuddy.com", "AdminPassword123")
+                            if (adminUser == null) {
+                                dbHelper.registerUser("System Admin", "admin@travelbuddy.com", "+919999999999", "AdminPassword123", "Mumbai, India", "Frequently", true)
+                                adminUser = dbHelper.checkEmailLogin("admin@travelbuddy.com", "AdminPassword123")
+                            }
+                            if (adminUser != null) {
+                                Toast.makeText(context, "System Admin Session Active!", Toast.LENGTH_SHORT).show()
+                                onLoginSuccess(adminUser)
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ),
+                        modifier = Modifier.fillMaxWidth().height(42.dp),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("⚡ INSTANT ADMIN ACCESS", fontWeight = FontWeight.Bold, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                    }
                     // Two sub-tabs: LOGIN vs SIGNUP
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -917,18 +943,14 @@ fun LoginScreen(
             // Bypass Button for Testing
             TextButton(
                 onClick = {
-                    val adminUser = dbHelper.checkEmailLogin("Admin", "AdminPassword123")
+                    var adminUser = dbHelper.checkEmailLogin("admin@travelbuddy.com", "AdminPassword123")
+                    if (adminUser == null) {
+                        dbHelper.registerUser("System Admin", "admin@travelbuddy.com", "+919999999999", "AdminPassword123", "Mumbai, India", "Frequently", true)
+                        adminUser = dbHelper.checkEmailLogin("admin@travelbuddy.com", "AdminPassword123")
+                    }
                     if (adminUser != null) {
-                        Toast.makeText(context, "System Admin Override Active", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "System Admin Session Loaded", Toast.LENGTH_SHORT).show()
                         onLoginSuccess(adminUser)
-                    } else {
-                        // Fallback register admin if database reset
-                        dbHelper.registerUser("Admin", "admin@travelbuddy.com", "+919999999999", "AdminPassword123", "New Delhi, India", "Frequently", true)
-                        val adminRetry = dbHelper.checkEmailLogin("Admin", "AdminPassword123")
-                        if (adminRetry != null) {
-                            Toast.makeText(context, "System Admin Override Restored", Toast.LENGTH_SHORT).show()
-                            onLoginSuccess(adminRetry)
-                        }
                     }
                 }
             ) {

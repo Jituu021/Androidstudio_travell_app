@@ -327,19 +327,7 @@ fun NexusGuideScreen(
                             )
                         }
                     )
-                    Tab.MAPS -> MapsScreen(
-                        userLat = userLat,
-                        userLon = userLon,
-                        coordinates = coordinates,
-                        hotelsList = hotelsList,
-                        selectedHotelIndex = selectedHotelIndex,
-                        onHotelSelected = { selectedHotelIndex = it },
-                        onSimulateLocation = { lat, lon, name ->
-                            userLat = lat
-                            userLon = lon
-                            userLocationName = name
-                        }
-                    )
+                    Tab.MAPS -> com.example.travel.gis.ui.GisMapScreen()
                     Tab.TRANSLATE -> TranslateScreen()
                     Tab.PLANNER -> TripPlannerScreen(dbHelper = dbHelper, userId = userSession.id)
                     Tab.PROFILE -> ProfileScreen(
@@ -1026,9 +1014,9 @@ fun EmergencyShareIcon(modifier: Modifier = Modifier, color: Color = MaterialThe
             moveTo(w * 0.5f, h * 0.32f)
             lineTo(w * 0.5f, h * 0.68f)
             moveTo(w * 0.32f, h * 0.4f)
-            quadraticTo(w * 0.5f, h * 0.25f, w * 0.68f, h * 0.4f)
+            quadraticBezierTo(w * 0.5f, h * 0.25f, w * 0.68f, h * 0.4f)
             moveTo(w * 0.38f, h * 0.48f)
-            quadraticTo(w * 0.5f, h * 0.38f, w * 0.62f, h * 0.48f)
+            quadraticBezierTo(w * 0.5f, h * 0.38f, w * 0.62f, h * 0.48f)
         }
         drawPath(path = markerPath, color = color, style = Stroke(width = strokeWidth))
         drawCircle(
@@ -1523,6 +1511,7 @@ fun EmergencyProtocolCard() {
 fun MapsScreen(
     userLat: Double,
     userLon: Double,
+    userLocationName: String = "Live GPS Location",
     coordinates: String,
     hotelsList: androidx.compose.runtime.snapshots.SnapshotStateList<HotelDestination>,
     selectedHotelIndex: Int,
@@ -1836,156 +1825,20 @@ fun MapsScreen(
                                 .fillMaxSize()
                                 .clip(RoundedCornerShape(12.dp))
                                 .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
-                                .background(if (isSatelliteMode) Color(0xFF1E2818) else Color(0xFFECEFF1))
-                                .pointerInput(Unit) {
-                                    detectDragGestures { change, dragAmount ->
-                                        change.consume()
-                                        mapOffsetX += dragAmount.x
-                                        mapOffsetY += dragAmount.y
-                                    }
-                                }
                         ) {
-                            Canvas(modifier = Modifier.fillMaxSize()) {
-                                val w = size.width
-                                val h = size.height
-                                val centerLat = userLat
-                                val centerLon = userLon
-
-                                // 1. Draw Grid lines (Normal view only)
-                                if (!isSatelliteMode) {
-                                    val gridSpacing = 40.dp.toPx()
-                                    val startX = mapOffsetX % gridSpacing
-                                    val startY = mapOffsetY % gridSpacing
-                                    var x = startX
-                                    while (x < w) {
-                                        drawLine(Color.LightGray.copy(alpha = 0.5f), start = Offset(x, 0f), end = Offset(x, h), strokeWidth = 1f)
-                                        x += gridSpacing
-                                    }
-                                    var y = startY
-                                    while (y < h) {
-                                        drawLine(Color.LightGray.copy(alpha = 0.5f), start = Offset(0f, y), end = Offset(w, y), strokeWidth = 1f)
-                                        y += gridSpacing
-                                    }
-                                } else {
-                                    // Satellite view backdrop (green-brown terrain gradient representation)
-                                    drawRect(
-                                        brush = Brush.radialGradient(
-                                            colors = listOf(Color(0xFF2C3E25), Color(0xFF1A2616)),
-                                            center = Offset(w / 2f + mapOffsetX, h / 2f + mapOffsetY),
-                                            radius = Math.max(w, h)
-                                        )
-                                    )
-                                }
-
-                                // 2. Draw Indus River
-                                val riverPoints = listOf(
-                                    34.11 to 77.51, 34.13 to 77.53, 34.14 to 77.55,
-                                    34.152 to 77.57, 34.165 to 77.59, 34.18 to 77.62
-                                )
-                                val riverPath = Path().apply {
-                                    riverPoints.forEachIndexed { i, p ->
-                                        val offset = mapCoordsToPixels(p.first, p.second, centerLat, centerLon, w, h, zoomLevel, mapOffsetX, mapOffsetY)
-                                        if (i == 0) moveTo(offset.x, offset.y) else lineTo(offset.x, offset.y)
-                                    }
-                                }
-                                drawPath(
-                                    path = riverPath,
-                                    color = if (isSatelliteMode) Color(0xFF0F3A5F) else Color(0xFF81D4FA),
-                                    style = Stroke(width = 12.dp.toPx() * zoomLevel, cap = StrokeCap.Round, join = StrokeJoin.Round)
-                                )
-
-                                // 3. Draw Streets (Grid Lines)
-                                val street1 = listOf(34.13 to 77.56, 34.15 to 77.57, 34.17 to 77.58)
-                                val street2 = listOf(34.1526 to 77.52, 34.1526 to 77.5771, 34.1526 to 77.62)
-                                
-                                fun drawStreet(coords: List<Pair<Double, Double>>, color: Color, width: Float) {
-                                    val path = Path().apply {
-                                        coords.forEachIndexed { i, p ->
-                                            val offset = mapCoordsToPixels(p.first, p.second, centerLat, centerLon, w, h, zoomLevel, mapOffsetX, mapOffsetY)
-                                            if (i == 0) moveTo(offset.x, offset.y) else lineTo(offset.x, offset.y)
-                                        }
-                                    }
-                                    drawPath(path = path, color = color, style = Stroke(width = width, cap = StrokeCap.Round, join = StrokeJoin.Round))
-                                }
-
-                                val streetColor = if (isSatelliteMode) Color(0xFF8A9A86) else Color.White
-                                drawStreet(street1, streetColor, 6.dp.toPx() * zoomLevel)
-                                drawStreet(street2, streetColor, 8.dp.toPx() * zoomLevel)
-
-                                // 4. Draw Navigation route (Active Route Path)
-                                if (isNavigatingRoute) {
-                                    val routeCoords = listOf(
-                                        userLat to userLon,
-                                        (userLat + selectedHotel.lat) / 2 to userLon,
-                                        selectedHotel.lat to userLon,
-                                        selectedHotel.lat to selectedHotel.lon
-                                    )
-                                    val routePath = Path().apply {
-                                        routeCoords.forEachIndexed { i, p ->
-                                            val offset = mapCoordsToPixels(p.first, p.second, centerLat, centerLon, w, h, zoomLevel, mapOffsetX, mapOffsetY)
-                                            if (i == 0) moveTo(offset.x, offset.y) else lineTo(offset.x, offset.y)
-                                        }
-                                    }
-                                    drawPath(
-                                        path = routePath,
-                                        color = Color(0xFF1A73E8), // Google Map Blue route
-                                        style = Stroke(width = 5.dp.toPx() * zoomLevel, cap = StrokeCap.Round, join = StrokeJoin.Round)
-                                    )
-                                }
-
-                                // 5. Draw Hotel Marker pins
-                                hotelsList.forEachIndexed { index, hotel ->
-                                    val pinColor = if (selectedHotelIndex == index) Color(0xFFEA4335) else Color(0xFFF1B000)
-                                    val pos = mapCoordsToPixels(hotel.lat, hotel.lon, centerLat, centerLon, w, h, zoomLevel, mapOffsetX, mapOffsetY)
-                                    
-                                    // Pin dot shadow
-                                    drawCircle(Color.Black.copy(alpha = 0.3f), radius = 6.dp.toPx() * zoomLevel, center = Offset(pos.x, pos.y + 2.dp.toPx()))
-                                    
-                                    // Custom Pin Triangle & Circle representation
-                                    val pinPath = Path().apply {
-                                        moveTo(pos.x, pos.y)
-                                        lineTo(pos.x - 5.dp.toPx() * zoomLevel, pos.y - 12.dp.toPx() * zoomLevel)
-                                        lineTo(pos.x + 5.dp.toPx() * zoomLevel, pos.y - 12.dp.toPx() * zoomLevel)
-                                        close()
-                                    }
-                                    drawPath(pinPath, color = pinColor)
-                                    drawCircle(pinColor, radius = 5.dp.toPx() * zoomLevel, center = Offset(pos.x, pos.y - 12.dp.toPx() * zoomLevel))
-                                    drawCircle(Color.White, radius = 2.dp.toPx() * zoomLevel, center = Offset(pos.x, pos.y - 12.dp.toPx() * zoomLevel))
-                                }
-
-                                // 5.5 Draw Nearby Essential Pin if selected
-                                activeEssentialFilter?.let { filter ->
-                                    val offsetLat = when (filter) {
-                                        "ATM" -> 0.0018
-                                        "Pharmacy" -> -0.0012
-                                        "Petrol Pump" -> 0.0028
-                                        "Public Toilet" -> -0.0022
-                                        else -> 0.0008 // Drinking Water
-                                    }
-                                    val offsetLon = when (filter) {
-                                        "ATM" -> -0.0015
-                                        "Pharmacy" -> 0.0022
-                                        "Petrol Pump" -> 0.0018
-                                        "Public Toilet" -> -0.0014
-                                        else -> 0.0012 // Drinking Water
-                                    }
-                                    val essentialLat = userLat + offsetLat
-                                    val essentialLon = userLon + offsetLon
-                                    val pos = mapCoordsToPixels(essentialLat, essentialLon, centerLat, centerLon, w, h, zoomLevel, mapOffsetX, mapOffsetY)
-                                    
-                                    // Green/Emerald map pin dot
-                                    drawCircle(Color(0xFF2E7D32).copy(alpha = 0.3f), radius = 14.dp.toPx() * zoomLevel, center = pos)
-                                    drawCircle(Color(0xFF2E7D32), radius = 7.dp.toPx() * zoomLevel, center = pos)
-                                    drawCircle(Color.White, radius = 3.dp.toPx() * zoomLevel, center = pos)
-                                }
-
-                                // 6. Draw User Location Dot
-                                val userPos = mapCoordsToPixels(userLat, userLon, centerLat, centerLon, w, h, zoomLevel, mapOffsetX, mapOffsetY)
-                                // Pulsing cyan circle
-                                drawCircle(Color(0xFF00B0FF).copy(alpha = 0.25f), radius = 16.dp.toPx() * zoomLevel, center = userPos)
-                                drawCircle(Color.White, radius = 7.dp.toPx() * zoomLevel, center = userPos)
-                                drawCircle(Color(0xFF00B0FF), radius = 5.dp.toPx() * zoomLevel, center = userPos)
-                            }
+                            OsmMapView(
+                                modifier = Modifier.fillMaxSize(),
+                                userLat = userLat,
+                                userLon = userLon,
+                                userLocationName = userLocationName,
+                                hotelsList = hotelsList,
+                                selectedHotelIndex = selectedHotelIndex,
+                                isSatellite = isSatelliteMode,
+                                zoomLevel = (zoomLevel * 8.5).coerceIn(4.0, 19.0),
+                                activeEssentialFilter = activeEssentialFilter,
+                                isOnlineMode = true,
+                                onHotelSelected = { idx -> onHotelSelected(idx) }
+                            )
                         }
 
                         // Overlay: Top Search Bar (Google Maps friendly)
@@ -4086,17 +3939,17 @@ fun WindIcon(modifier: Modifier = Modifier, color: Color = MaterialTheme.colorSc
 
         val path1 = Path().apply {
             moveTo(w * 0.15f, h * 0.3f)
-            quadraticTo(w * 0.4f, h * 0.2f, w * 0.65f, h * 0.3f)
-            quadraticTo(w * 0.85f, h * 0.4f, w * 0.85f, h * 0.3f)
+            quadraticBezierTo(w * 0.4f, h * 0.2f, w * 0.65f, h * 0.3f)
+            quadraticBezierTo(w * 0.85f, h * 0.4f, w * 0.85f, h * 0.3f)
         }
         val path2 = Path().apply {
             moveTo(w * 0.1f, h * 0.5f)
-            quadraticTo(w * 0.45f, h * 0.4f, w * 0.7f, h * 0.5f)
-            quadraticTo(w * 0.9f, h * 0.6f, w * 0.9f, h * 0.5f)
+            quadraticBezierTo(w * 0.45f, h * 0.4f, w * 0.7f, h * 0.5f)
+            quadraticBezierTo(w * 0.9f, h * 0.6f, w * 0.9f, h * 0.5f)
         }
         val path3 = Path().apply {
             moveTo(w * 0.25f, h * 0.7f)
-            quadraticTo(w * 0.5f, h * 0.6f, w * 0.75f, h * 0.7f)
+            quadraticBezierTo(w * 0.5f, h * 0.6f, w * 0.75f, h * 0.7f)
         }
 
         drawPath(path = path1, color = color, style = Stroke(width = strokeWidth))
@@ -4178,8 +4031,8 @@ fun ShieldIcon(modifier: Modifier = Modifier, color: Color = MaterialTheme.color
         val path = Path().apply {
             moveTo(w * 0.5f, h * 0.1f)
             lineTo(w * 0.85f, h * 0.22f)
-            quadraticTo(w * 0.85f, h * 0.58f, w * 0.5f, h * 0.88f)
-            quadraticTo(w * 0.15f, h * 0.58f, w * 0.15f, h * 0.22f)
+            quadraticBezierTo(w * 0.85f, h * 0.58f, w * 0.5f, h * 0.88f)
+            quadraticBezierTo(w * 0.15f, h * 0.58f, w * 0.15f, h * 0.22f)
             close()
         }
         drawPath(path = path, color = color, style = Stroke(width = stroke))
@@ -4252,8 +4105,8 @@ fun PersonIcon(modifier: Modifier = Modifier, color: Color = LocalContentColor.c
         // Shoulder arc
         val path = Path().apply {
             moveTo(w * 0.18f, h * 0.88f)
-            quadraticTo(w * 0.18f, h * 0.62f, w * 0.5f, h * 0.62f)
-            quadraticTo(w * 0.82f, h * 0.62f, w * 0.82f, h * 0.88f)
+            quadraticBezierTo(w * 0.18f, h * 0.62f, w * 0.5f, h * 0.62f)
+            quadraticBezierTo(w * 0.82f, h * 0.62f, w * 0.82f, h * 0.88f)
         }
         drawPath(path = path, color = color, style = Stroke(width = stroke))
     }
