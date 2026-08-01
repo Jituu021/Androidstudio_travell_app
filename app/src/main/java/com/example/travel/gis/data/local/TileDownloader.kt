@@ -14,8 +14,14 @@ import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.ln
 import kotlin.math.tan
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class TileDownloader(private val context: Context) {
+@Singleton
+class TileDownloader @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
 
     private val tilesDir = File(context.filesDir, "offline_tiles").apply { mkdirs() }
 

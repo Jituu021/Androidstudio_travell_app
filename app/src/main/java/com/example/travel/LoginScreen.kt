@@ -86,8 +86,9 @@ suspend fun sendEmailOtp(toEmail: String, otp: String): String = withContext(Dis
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
-    dbHelper: TravelDatabaseHelper,
-    onLoginSuccess: (User) -> Unit
+    viewModel: com.example.travel.presentation.auth.LoginViewModel? = null,
+    dbHelper: TravelDatabaseHelper = TravelDatabaseHelper(LocalContext.current),
+    onLoginSuccess: (User) -> Unit = {}
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()

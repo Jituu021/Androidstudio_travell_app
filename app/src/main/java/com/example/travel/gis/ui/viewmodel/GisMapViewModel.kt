@@ -2,18 +2,29 @@ package com.example.travel.gis.ui.viewmodel
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.travel.domain.usecase.gis.CalculateRouteUseCase
+import com.example.travel.domain.usecase.gis.DownloadOfflineTilesUseCase
+import com.example.travel.domain.usecase.gis.SearchPlacesUseCase
+import com.example.travel.domain.usecase.travel.AddExpenseUseCase
+import com.example.travel.domain.usecase.travel.GetExpensesUseCase
 import com.example.travel.gis.data.local.TileDownloader
 import com.example.travel.gis.domain.model.*
 import com.example.travel.gis.provider.location.FusedLocationServiceImpl
 import com.example.travel.gis.provider.route.OsrmRouteEngine
 import com.example.travel.gis.provider.search.GoogleSearchEngine
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+import com.example.travel.domain.usecase.location.GetLocationStreamUseCase
+import com.example.travel.domain.usecase.location.SetLocationModeUseCase
 
 data class GisUiState(
     val currentTelemetry: LocationTelemetry = LocationTelemetry(34.1526, 77.5771, 5f, 0f, 0f, 3500.0),
@@ -40,13 +51,20 @@ data class GisUiState(
     val searchHistory: List<String> = listOf("Petrol Pump nearby", "State Bank ATM", "City Hospital", "Public Toilet")
 )
 
-class GisMapViewModel(application: Application) : AndroidViewModel(application) {
-
-    private val locationService = FusedLocationServiceImpl(application)
-    private val routeEngine = OsrmRouteEngine()
-    private val searchEngine = GoogleSearchEngine(application)
-    private val tileDownloader = TileDownloader(application)
-    private val dbHelper = com.example.travel.TravelDatabaseHelper(application)
+@HiltViewModel
+class GisMapViewModel @Inject constructor(
+    private val locationService: FusedLocationServiceImpl,
+    private val routeEngine: OsrmRouteEngine,
+    private val searchEngine: GoogleSearchEngine,
+    private val tileDownloader: TileDownloader,
+    private val getExpensesUseCase: GetExpensesUseCase,
+    private val addExpenseUseCase: AddExpenseUseCase,
+    private val searchPlacesUseCase: SearchPlacesUseCase,
+    private val calculateRouteUseCase: CalculateRouteUseCase,
+    private val downloadOfflineTilesUseCase: DownloadOfflineTilesUseCase,
+    private val getLocationStreamUseCase: GetLocationStreamUseCase,
+    private val setLocationModeUseCase: SetLocationModeUseCase
+) : androidx.lifecycle.ViewModel() {
 
     private val _uiState = MutableStateFlow(GisUiState())
     val uiState: StateFlow<GisUiState> = _uiState.asStateFlow()
@@ -62,15 +80,16 @@ class GisMapViewModel(application: Application) : AndroidViewModel(application) 
 
     private fun loadTripExpenses() {
         viewModelScope.launch {
-            val list = dbHelper.getAllExpenses()
-            _uiState.value = _uiState.value.copy(expenses = list)
+            getExpensesUseCase().collect { list ->
+                val legacyExpenses = list.map { com.example.travel.TravelExpense(it.id.toInt(), 1, it.amount, it.category, it.note, it.timestamp.toString()) }
+                _uiState.value = _uiState.value.copy(expenses = legacyExpenses)
+            }
         }
     }
 
     fun addGisExpense(amount: Double, category: String, description: String) {
         viewModelScope.launch {
-            dbHelper.addExpense(1, amount, category, description)
-            loadTripExpenses()
+            addExpenseUseCase(com.example.travel.domain.model.Expense(category = category, amount = amount, note = description))
         }
     }
 
@@ -84,7 +103,7 @@ class GisMapViewModel(application: Application) : AndroidViewModel(application) 
 
     private fun startLocationUpdates() {
         viewModelScope.launch {
-            locationService.locationUpdates.collect { telemetry ->
+            getLocationStreamUseCase().collect { telemetry ->
                 val address = searchEngine.reverseGeocode(telemetry.latitude, telemetry.longitude)
                 _uiState.value = _uiState.value.copy(
                     currentTelemetry = telemetry,

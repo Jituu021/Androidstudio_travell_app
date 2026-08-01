@@ -20,7 +20,8 @@ import org.osmdroid.views.MapView
 
 @Composable
 fun GisMapScreen(
-    viewModel: GisMapViewModel = viewModel()
+    viewModel: GisMapViewModel = viewModel(),
+    onBack: () -> Unit = {}
 ) {
     val state by viewModel.uiState.collectAsState()
 
@@ -35,6 +36,9 @@ fun GisMapScreen(
             userLon = state.currentTelemetry.longitude,
             userLocationName = state.userAddress,
             deviceHeading = state.currentTelemetry.bearingDegrees,
+            speedKmH = state.currentTelemetry.speedKmH,
+            altitudeMeters = state.currentTelemetry.altitudeMeters,
+            accuracyMeters = state.currentTelemetry.accuracyMeters,
             isSatellite = state.isSatellite,
             zoomLevel = userZoomLevel,
             hotelsList = remember { androidx.compose.runtime.mutableStateListOf() },

@@ -9,7 +9,11 @@ import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.math.*
 
-class OsrmRouteEngine : IRouteEngine {
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class OsrmRouteEngine @Inject constructor() : IRouteEngine {
 
     override suspend fun calculateRoute(
         originLat: Double,

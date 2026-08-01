@@ -70,5 +70,9 @@ data class LocationTelemetry(
     val speedKmH: Float,
     val bearingDegrees: Float,
     val altitudeMeters: Double,
+    val totalDistanceMeters: Double = 0.0,
+    val activityType: String = "Stationary",
+    val isMockLocationDetected: Boolean = false,
+    val isGpsSignalLost: Boolean = false,
     val timestamp: Long = System.currentTimeMillis()
 )

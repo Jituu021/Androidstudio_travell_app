@@ -213,9 +213,13 @@ enum class Tab {
 
 @Composable
 fun NexusGuideScreen(
-    dbHelper: TravelDatabaseHelper,
-    userSession: User,
-    onLogOut: () -> Unit
+    viewModel: com.example.travel.presentation.nexus.NexusGuideViewModel? = null,
+    onOpenGisMap: () -> Unit = {},
+    onOpenBaking: () -> Unit = {},
+    onLogout: () -> Unit = {},
+    dbHelper: TravelDatabaseHelper = TravelDatabaseHelper(LocalContext.current),
+    userSession: User = User(1, "System Admin", "admin@travelbuddy.com", "+919999999999", "Mumbai, India", "Frequently", true),
+    onLogOut: () -> Unit = onLogout
 ) {
     val context = LocalContext.current
     var activeTab by remember { mutableStateOf(Tab.HOME) }

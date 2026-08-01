@@ -12,8 +12,14 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 import java.util.Locale
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class GoogleSearchEngine(private val context: Context) : ISearchEngine {
+@Singleton
+class GoogleSearchEngine @Inject constructor(
+    @ApplicationContext private val context: Context
+) : ISearchEngine {
 
     private val geocoder = Geocoder(context, Locale.getDefault())
 

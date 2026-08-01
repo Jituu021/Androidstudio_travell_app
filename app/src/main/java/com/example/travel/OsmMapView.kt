@@ -24,6 +24,9 @@ import org.osmdroid.util.MapTileIndex
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polyline
+import org.osmdroid.views.overlay.ScaleBarOverlay
+import org.osmdroid.views.overlay.compass.CompassOverlay
+import org.osmdroid.views.overlay.compass.InternalCompassOrientationProvider
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 
@@ -523,6 +526,9 @@ fun OsmMapView(
     userLon: Double,
     userLocationName: String,
     deviceHeading: Float = 0f,
+    speedKmH: Float = 0f,
+    altitudeMeters: Double = 0.0,
+    accuracyMeters: Float = 5f,
     hotelsList: List<HotelDestination> = emptyList(),
     selectedHotelIndex: Int = 0,
     isSatellite: Boolean,
@@ -571,6 +577,19 @@ fun OsmMapView(
                     locationOverlay.enableMyLocation()
                     overlays.add(locationOverlay)
 
+                    // Scale bar overlay
+                    val scaleBarOverlay = ScaleBarOverlay(this).apply {
+                        setCentred(false)
+                        setScaleBarOffset(ctx.resources.displayMetrics.widthPixels / 2 - 100, 20)
+                    }
+                    overlays.add(scaleBarOverlay)
+
+                    // Compass overlay
+                    val compassOverlay = CompassOverlay(ctx, InternalCompassOrientationProvider(ctx), this).apply {
+                        enableCompass()
+                    }
+                    overlays.add(compassOverlay)
+
                     onMapReady(this)
                 }
             },
@@ -579,10 +598,13 @@ fun OsmMapView(
                 mapView.setUseDataConnection(isOnlineMode)
                 
                 val locationOverlay = mapView.overlays.firstOrNull { it is MyLocationNewOverlay }
+                val scaleBarOverlay = mapView.overlays.firstOrNull { it is ScaleBarOverlay }
+                val compassOverlay = mapView.overlays.firstOrNull { it is CompassOverlay }
+
                 mapView.overlays.clear()
-                if (locationOverlay != null) {
-                    mapView.overlays.add(locationOverlay)
-                }
+                if (locationOverlay != null) mapView.overlays.add(locationOverlay)
+                if (scaleBarOverlay != null) mapView.overlays.add(scaleBarOverlay)
+                if (compassOverlay != null) mapView.overlays.add(compassOverlay)
 
                 val userGeoPoint = GeoPoint(userLat, userLon)
                 if (!hasCenteredLiveLocation && (userLat != 34.1526 || userLon != 77.5771)) {
@@ -717,6 +739,38 @@ fun OsmMapView(
                 mapView.invalidate()
             }
         )
+
+        // Live Telemetry HUD Overlay (Speed, Altitude, Bearing, Accuracy)
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 70.dp, end = 12.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.90f))
+                .padding(horizontal = 10.dp, vertical = 6.dp)
+        ) {
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = "⚡ ${String.format("%.1f", speedKmH)} km/h",
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "🏔 ${altitudeMeters.toInt()}m alt",
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    text = "🧭 ${deviceHeading.toInt()}° • ±${accuracyMeters.toInt()}m",
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
 
         // Map API Badge Overlay
         Box(

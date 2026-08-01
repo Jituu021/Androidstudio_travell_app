@@ -3,6 +3,8 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.gms.google.services)
+    alias(libs.plugins.hilt.android)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -52,6 +54,29 @@ dependencies {
     implementation("com.google.android.gms:play-services-maps:19.0.0")
     implementation("org.osmdroid:osmdroid-android:6.1.20")
     implementation("io.coil-kt:coil-compose:2.6.0")
+
+    // Hilt Dependency Injection
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.compiler)
+    implementation(libs.hilt.navigation.compose)
+
+    // Room Database
+    implementation(libs.room.runtime)
+    implementation(libs.room.ktx)
+    ksp(libs.room.compiler)
+
+    // DataStore Preferences
+    implementation(libs.datastore.preferences)
+
+    // Navigation Compose
+    implementation(libs.navigation.compose)
+
+    // Timber Logging
+    implementation(libs.timber)
+
+    // WorkManager
+    implementation(libs.work.runtime.ktx)
+
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

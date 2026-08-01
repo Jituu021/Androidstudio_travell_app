@@ -10,11 +10,17 @@ import android.os.Looper
 import com.example.travel.gis.domain.model.LocationTelemetry
 import com.example.travel.gis.provider.ILocationService
 import com.google.android.gms.location.*
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class FusedLocationServiceImpl(private val context: Context) : ILocationService {
+@Singleton
+class FusedLocationServiceImpl @Inject constructor(
+    @ApplicationContext private val context: Context
+) : ILocationService {
 
     private val fusedLocationClient: FusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(context)
     private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
