@@ -19,6 +19,7 @@ import com.example.travel.data.local.db.dao.RouteDao
 import com.example.travel.data.local.db.dao.SafetyDao
 import com.example.travel.data.local.db.dao.SearchDao
 import com.example.travel.data.local.db.dao.TimelineDao
+import com.example.travel.data.local.db.dao.TravelStoryDao
 import com.example.travel.data.local.db.dao.TripNoteDao
 import com.example.travel.data.local.db.dao.UserDao
 import com.example.travel.data.local.db.dao.WeatherDao
@@ -52,7 +53,10 @@ import com.example.travel.data.local.db.entity.SearchCacheEntity
 import com.example.travel.data.local.db.entity.SearchHistoryEntity
 import com.example.travel.data.local.db.entity.SearchIndexEntity
 import com.example.travel.data.local.db.entity.SettlementEntity
+import com.example.travel.data.local.db.entity.SlideshowProjectEntity
+import com.example.travel.data.local.db.entity.StoryChapterEntity
 import com.example.travel.data.local.db.entity.TimelineEventEntity
+import com.example.travel.data.local.db.entity.TravelStoryEntity
 import com.example.travel.data.local.db.entity.TripBudgetEntity
 import com.example.travel.data.local.db.entity.TripHighlightEntity
 import com.example.travel.data.local.db.entity.TripMemberEntity
@@ -102,9 +106,12 @@ import com.example.travel.data.local.db.entity.WeatherCacheEntity
         MemoryCollectionEntity::class,
         CollectionItemEntity::class,
         SearchIndexEntity::class,
-        TripHighlightEntity::class
+        TripHighlightEntity::class,
+        TravelStoryEntity::class,
+        StoryChapterEntity::class,
+        SlideshowProjectEntity::class
     ],
-    version = 22,
+    version = 23,
     exportSchema = false
 )
 abstract class TravelDatabase : RoomDatabase() {
@@ -128,6 +135,7 @@ abstract class TravelDatabase : RoomDatabase() {
     abstract fun photoMemoryDao(): PhotoMemoryDao
     abstract fun timelineDao(): TimelineDao
     abstract fun memoryCollectionDao(): MemoryCollectionDao
+    abstract fun travelStoryDao(): TravelStoryDao
 
     companion object {
         const val DATABASE_NAME = "travel_buddy_db"

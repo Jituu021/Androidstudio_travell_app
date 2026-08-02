@@ -86,4 +86,7 @@ object DatabaseModule {
 
     @Provides
     fun provideMemoryCollectionDao(db: TravelDatabase): com.example.travel.data.local.db.dao.MemoryCollectionDao = db.memoryCollectionDao()
+
+    @Provides
+    fun provideTravelStoryDao(db: TravelDatabase): com.example.travel.data.local.db.dao.TravelStoryDao = db.travelStoryDao()
 }

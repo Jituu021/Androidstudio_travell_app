@@ -207,4 +207,16 @@ abstract class RepositoryModule {
     abstract fun bindMemorySearchRepository(
         impl: com.example.travel.data.repository.MemorySearchRepositoryImpl
     ): com.example.travel.domain.repository.MemorySearchRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindTravelStoryRepository(
+        impl: com.example.travel.data.repository.TravelStoryRepositoryImpl
+    ): com.example.travel.domain.repository.TravelStoryRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindSlideshowRepository(
+        impl: com.example.travel.data.repository.SlideshowRepositoryImpl
+    ): com.example.travel.domain.repository.SlideshowRepository
 }
