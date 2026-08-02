@@ -93,4 +93,10 @@ abstract class RepositoryModule {
     abstract fun bindBudgetRepository(
         impl: com.example.travel.data.repository.BudgetRepositoryImpl
     ): com.example.travel.domain.repository.BudgetRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindPackingRepository(
+        impl: com.example.travel.data.repository.PackingRepositoryImpl
+    ): com.example.travel.domain.repository.PackingRepository
 }

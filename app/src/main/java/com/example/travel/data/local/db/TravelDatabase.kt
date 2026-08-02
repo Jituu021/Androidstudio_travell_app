@@ -7,6 +7,7 @@ import com.example.travel.data.local.db.dao.BudgetDao
 import com.example.travel.data.local.db.dao.ExpenseDao
 import com.example.travel.data.local.db.dao.NearbyDao
 import com.example.travel.data.local.db.dao.OfflineRegionDao
+import com.example.travel.data.local.db.dao.PackingDao
 import com.example.travel.data.local.db.dao.RouteDao
 import com.example.travel.data.local.db.dao.SearchDao
 import com.example.travel.data.local.db.dao.TripNoteDao
@@ -17,6 +18,7 @@ import com.example.travel.data.local.db.entity.ExpenseEntity
 import com.example.travel.data.local.db.entity.FavoritePlaceEntity
 import com.example.travel.data.local.db.entity.NearbyPlaceCacheEntity
 import com.example.travel.data.local.db.entity.OfflineRegionEntity
+import com.example.travel.data.local.db.entity.PackingItemEntity
 import com.example.travel.data.local.db.entity.RouteCacheEntity
 import com.example.travel.data.local.db.entity.SearchCacheEntity
 import com.example.travel.data.local.db.entity.SearchHistoryEntity
@@ -38,9 +40,10 @@ import com.example.travel.data.local.db.entity.WeatherCacheEntity
         OfflineRegionEntity::class,
         WeatherCacheEntity::class,
         AiTripPlanEntity::class,
-        TripBudgetEntity::class
+        TripBudgetEntity::class,
+        PackingItemEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 abstract class TravelDatabase : RoomDatabase() {
@@ -54,6 +57,7 @@ abstract class TravelDatabase : RoomDatabase() {
     abstract fun weatherDao(): WeatherDao
     abstract fun aiTripPlanDao(): AiTripPlanDao
     abstract fun budgetDao(): BudgetDao
+    abstract fun packingDao(): PackingDao
 
     companion object {
         const val DATABASE_NAME = "travel_buddy_db"

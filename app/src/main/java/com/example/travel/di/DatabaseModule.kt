@@ -56,4 +56,7 @@ object DatabaseModule {
 
     @Provides
     fun provideBudgetDao(db: TravelDatabase): com.example.travel.data.local.db.dao.BudgetDao = db.budgetDao()
+
+    @Provides
+    fun providePackingDao(db: TravelDatabase): com.example.travel.data.local.db.dao.PackingDao = db.packingDao()
 }
