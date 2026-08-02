@@ -99,4 +99,34 @@ abstract class RepositoryModule {
     abstract fun bindPackingRepository(
         impl: com.example.travel.data.repository.PackingRepositoryImpl
     ): com.example.travel.domain.repository.PackingRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindSafetyRepository(
+        impl: com.example.travel.data.repository.SafetyRepositoryImpl
+    ): com.example.travel.domain.repository.SafetyRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindLocalGuideRepository(
+        impl: com.example.travel.data.repository.LocalGuideRepositoryImpl
+    ): com.example.travel.domain.repository.LocalGuideRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindGroupTripRepository(
+        impl: com.example.travel.data.repository.GroupTripRepositoryImpl
+    ): com.example.travel.domain.repository.GroupTripRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindGroupExpenseRepository(
+        impl: com.example.travel.data.repository.GroupExpenseRepositoryImpl
+    ): com.example.travel.domain.repository.GroupExpenseRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindFoodRepository(
+        impl: com.example.travel.data.repository.FoodRepositoryImpl
+    ): com.example.travel.domain.repository.FoodRepository
 }

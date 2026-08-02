@@ -59,4 +59,19 @@ object DatabaseModule {
 
     @Provides
     fun providePackingDao(db: TravelDatabase): com.example.travel.data.local.db.dao.PackingDao = db.packingDao()
+
+    @Provides
+    fun provideSafetyDao(db: TravelDatabase): com.example.travel.data.local.db.dao.SafetyDao = db.safetyDao()
+
+    @Provides
+    fun provideLocalGuideDao(db: TravelDatabase): com.example.travel.data.local.db.dao.LocalGuideDao = db.localGuideDao()
+
+    @Provides
+    fun provideGroupTripDao(db: TravelDatabase): com.example.travel.data.local.db.dao.GroupTripDao = db.groupTripDao()
+
+    @Provides
+    fun provideGroupExpenseDao(db: TravelDatabase): com.example.travel.data.local.db.dao.GroupExpenseDao = db.groupExpenseDao()
+
+    @Provides
+    fun provideFoodDao(db: TravelDatabase): com.example.travel.data.local.db.dao.FoodDao = db.foodDao()
 }

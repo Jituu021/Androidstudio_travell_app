@@ -5,10 +5,15 @@ import androidx.room.RoomDatabase
 import com.example.travel.data.local.db.dao.AiTripPlanDao
 import com.example.travel.data.local.db.dao.BudgetDao
 import com.example.travel.data.local.db.dao.ExpenseDao
+import com.example.travel.data.local.db.dao.FoodDao
+import com.example.travel.data.local.db.dao.GroupExpenseDao
+import com.example.travel.data.local.db.dao.GroupTripDao
+import com.example.travel.data.local.db.dao.LocalGuideDao
 import com.example.travel.data.local.db.dao.NearbyDao
 import com.example.travel.data.local.db.dao.OfflineRegionDao
 import com.example.travel.data.local.db.dao.PackingDao
 import com.example.travel.data.local.db.dao.RouteDao
+import com.example.travel.data.local.db.dao.SafetyDao
 import com.example.travel.data.local.db.dao.SearchDao
 import com.example.travel.data.local.db.dao.TripNoteDao
 import com.example.travel.data.local.db.dao.UserDao
@@ -16,13 +21,20 @@ import com.example.travel.data.local.db.dao.WeatherDao
 import com.example.travel.data.local.db.entity.AiTripPlanEntity
 import com.example.travel.data.local.db.entity.ExpenseEntity
 import com.example.travel.data.local.db.entity.FavoritePlaceEntity
+import com.example.travel.data.local.db.entity.FavoriteRestaurantEntity
+import com.example.travel.data.local.db.entity.GroupExpenseEntity
+import com.example.travel.data.local.db.entity.GroupTripEntity
+import com.example.travel.data.local.db.entity.LocalGuideEntity
 import com.example.travel.data.local.db.entity.NearbyPlaceCacheEntity
 import com.example.travel.data.local.db.entity.OfflineRegionEntity
 import com.example.travel.data.local.db.entity.PackingItemEntity
 import com.example.travel.data.local.db.entity.RouteCacheEntity
+import com.example.travel.data.local.db.entity.SafetyReportEntity
 import com.example.travel.data.local.db.entity.SearchCacheEntity
 import com.example.travel.data.local.db.entity.SearchHistoryEntity
+import com.example.travel.data.local.db.entity.SettlementEntity
 import com.example.travel.data.local.db.entity.TripBudgetEntity
+import com.example.travel.data.local.db.entity.TripMemberEntity
 import com.example.travel.data.local.db.entity.TripNoteEntity
 import com.example.travel.data.local.db.entity.UserEntity
 import com.example.travel.data.local.db.entity.WeatherCacheEntity
@@ -41,9 +53,16 @@ import com.example.travel.data.local.db.entity.WeatherCacheEntity
         WeatherCacheEntity::class,
         AiTripPlanEntity::class,
         TripBudgetEntity::class,
-        PackingItemEntity::class
+        PackingItemEntity::class,
+        SafetyReportEntity::class,
+        LocalGuideEntity::class,
+        GroupTripEntity::class,
+        TripMemberEntity::class,
+        GroupExpenseEntity::class,
+        SettlementEntity::class,
+        FavoriteRestaurantEntity::class
     ],
-    version = 9,
+    version = 14,
     exportSchema = false
 )
 abstract class TravelDatabase : RoomDatabase() {
@@ -58,6 +77,11 @@ abstract class TravelDatabase : RoomDatabase() {
     abstract fun aiTripPlanDao(): AiTripPlanDao
     abstract fun budgetDao(): BudgetDao
     abstract fun packingDao(): PackingDao
+    abstract fun safetyDao(): SafetyDao
+    abstract fun localGuideDao(): LocalGuideDao
+    abstract fun groupTripDao(): GroupTripDao
+    abstract fun groupExpenseDao(): GroupExpenseDao
+    abstract fun foodDao(): FoodDao
 
     companion object {
         const val DATABASE_NAME = "travel_buddy_db"
