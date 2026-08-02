@@ -10,6 +10,7 @@ import com.example.travel.data.local.db.dao.GroupExpenseDao
 import com.example.travel.data.local.db.dao.GroupTripDao
 import com.example.travel.data.local.db.dao.JournalDao
 import com.example.travel.data.local.db.dao.LocalGuideDao
+import com.example.travel.data.local.db.dao.MemoryCollectionDao
 import com.example.travel.data.local.db.dao.NearbyDao
 import com.example.travel.data.local.db.dao.OfflineRegionDao
 import com.example.travel.data.local.db.dao.PackingDao
@@ -25,6 +26,7 @@ import com.example.travel.data.local.db.entity.AIJournalSummaryEntity
 import com.example.travel.data.local.db.entity.AIPhotoAnalysisEntity
 import com.example.travel.data.local.db.entity.AITripStoryEntity
 import com.example.travel.data.local.db.entity.AiTripPlanEntity
+import com.example.travel.data.local.db.entity.CollectionItemEntity
 import com.example.travel.data.local.db.entity.ExpenseEntity
 import com.example.travel.data.local.db.entity.FavoritePlaceEntity
 import com.example.travel.data.local.db.entity.FavoriteRestaurantEntity
@@ -35,6 +37,7 @@ import com.example.travel.data.local.db.entity.JournalEntryEntity
 import com.example.travel.data.local.db.entity.JournalLocationEntity
 import com.example.travel.data.local.db.entity.JournalMediaEntity
 import com.example.travel.data.local.db.entity.LocalGuideEntity
+import com.example.travel.data.local.db.entity.MemoryCollectionEntity
 import com.example.travel.data.local.db.entity.MemoryRouteEntity
 import com.example.travel.data.local.db.entity.NearbyPlaceCacheEntity
 import com.example.travel.data.local.db.entity.OfflineRegionEntity
@@ -47,9 +50,11 @@ import com.example.travel.data.local.db.entity.RouteCacheEntity
 import com.example.travel.data.local.db.entity.SafetyReportEntity
 import com.example.travel.data.local.db.entity.SearchCacheEntity
 import com.example.travel.data.local.db.entity.SearchHistoryEntity
+import com.example.travel.data.local.db.entity.SearchIndexEntity
 import com.example.travel.data.local.db.entity.SettlementEntity
 import com.example.travel.data.local.db.entity.TimelineEventEntity
 import com.example.travel.data.local.db.entity.TripBudgetEntity
+import com.example.travel.data.local.db.entity.TripHighlightEntity
 import com.example.travel.data.local.db.entity.TripMemberEntity
 import com.example.travel.data.local.db.entity.TripNoteEntity
 import com.example.travel.data.local.db.entity.TripStatisticsEntity
@@ -93,9 +98,13 @@ import com.example.travel.data.local.db.entity.WeatherCacheEntity
         PhotoMomentEntity::class,
         TimelineEventEntity::class,
         MemoryRouteEntity::class,
-        TripStatisticsEntity::class
+        TripStatisticsEntity::class,
+        MemoryCollectionEntity::class,
+        CollectionItemEntity::class,
+        SearchIndexEntity::class,
+        TripHighlightEntity::class
     ],
-    version = 21,
+    version = 22,
     exportSchema = false
 )
 abstract class TravelDatabase : RoomDatabase() {
@@ -118,6 +127,7 @@ abstract class TravelDatabase : RoomDatabase() {
     abstract fun journalDao(): JournalDao
     abstract fun photoMemoryDao(): PhotoMemoryDao
     abstract fun timelineDao(): TimelineDao
+    abstract fun memoryCollectionDao(): MemoryCollectionDao
 
     companion object {
         const val DATABASE_NAME = "travel_buddy_db"

@@ -83,4 +83,7 @@ object DatabaseModule {
 
     @Provides
     fun provideTimelineDao(db: TravelDatabase): com.example.travel.data.local.db.dao.TimelineDao = db.timelineDao()
+
+    @Provides
+    fun provideMemoryCollectionDao(db: TravelDatabase): com.example.travel.data.local.db.dao.MemoryCollectionDao = db.memoryCollectionDao()
 }
