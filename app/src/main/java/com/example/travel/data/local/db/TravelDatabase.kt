@@ -8,6 +8,7 @@ import com.example.travel.data.local.db.dao.ExpenseDao
 import com.example.travel.data.local.db.dao.FoodDao
 import com.example.travel.data.local.db.dao.GroupExpenseDao
 import com.example.travel.data.local.db.dao.GroupTripDao
+import com.example.travel.data.local.db.dao.JournalDao
 import com.example.travel.data.local.db.dao.LocalGuideDao
 import com.example.travel.data.local.db.dao.NearbyDao
 import com.example.travel.data.local.db.dao.OfflineRegionDao
@@ -24,6 +25,8 @@ import com.example.travel.data.local.db.entity.FavoritePlaceEntity
 import com.example.travel.data.local.db.entity.FavoriteRestaurantEntity
 import com.example.travel.data.local.db.entity.GroupExpenseEntity
 import com.example.travel.data.local.db.entity.GroupTripEntity
+import com.example.travel.data.local.db.entity.JournalEntity
+import com.example.travel.data.local.db.entity.JournalEntryEntity
 import com.example.travel.data.local.db.entity.LocalGuideEntity
 import com.example.travel.data.local.db.entity.NearbyPlaceCacheEntity
 import com.example.travel.data.local.db.entity.OfflineRegionEntity
@@ -60,9 +63,11 @@ import com.example.travel.data.local.db.entity.WeatherCacheEntity
         TripMemberEntity::class,
         GroupExpenseEntity::class,
         SettlementEntity::class,
-        FavoriteRestaurantEntity::class
+        FavoriteRestaurantEntity::class,
+        JournalEntity::class,
+        JournalEntryEntity::class
     ],
-    version = 14,
+    version = 15,
     exportSchema = false
 )
 abstract class TravelDatabase : RoomDatabase() {
@@ -82,6 +87,7 @@ abstract class TravelDatabase : RoomDatabase() {
     abstract fun groupTripDao(): GroupTripDao
     abstract fun groupExpenseDao(): GroupExpenseDao
     abstract fun foodDao(): FoodDao
+    abstract fun journalDao(): JournalDao
 
     companion object {
         const val DATABASE_NAME = "travel_buddy_db"

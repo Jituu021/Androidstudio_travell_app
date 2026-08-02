@@ -129,4 +129,10 @@ abstract class RepositoryModule {
     abstract fun bindFoodRepository(
         impl: com.example.travel.data.repository.FoodRepositoryImpl
     ): com.example.travel.domain.repository.FoodRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindTravelJournalRepository(
+        impl: com.example.travel.data.repository.TravelJournalRepositoryImpl
+    ): com.example.travel.domain.repository.TravelJournalRepository
 }
