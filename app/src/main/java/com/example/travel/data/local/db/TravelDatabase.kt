@@ -19,6 +19,8 @@ import com.example.travel.data.local.db.dao.SearchDao
 import com.example.travel.data.local.db.dao.TripNoteDao
 import com.example.travel.data.local.db.dao.UserDao
 import com.example.travel.data.local.db.dao.WeatherDao
+import com.example.travel.data.local.db.entity.AIJournalSummaryEntity
+import com.example.travel.data.local.db.entity.AITripStoryEntity
 import com.example.travel.data.local.db.entity.AiTripPlanEntity
 import com.example.travel.data.local.db.entity.ExpenseEntity
 import com.example.travel.data.local.db.entity.FavoritePlaceEntity
@@ -27,6 +29,8 @@ import com.example.travel.data.local.db.entity.GroupExpenseEntity
 import com.example.travel.data.local.db.entity.GroupTripEntity
 import com.example.travel.data.local.db.entity.JournalEntity
 import com.example.travel.data.local.db.entity.JournalEntryEntity
+import com.example.travel.data.local.db.entity.JournalLocationEntity
+import com.example.travel.data.local.db.entity.JournalMediaEntity
 import com.example.travel.data.local.db.entity.LocalGuideEntity
 import com.example.travel.data.local.db.entity.NearbyPlaceCacheEntity
 import com.example.travel.data.local.db.entity.OfflineRegionEntity
@@ -40,6 +44,7 @@ import com.example.travel.data.local.db.entity.TripBudgetEntity
 import com.example.travel.data.local.db.entity.TripMemberEntity
 import com.example.travel.data.local.db.entity.TripNoteEntity
 import com.example.travel.data.local.db.entity.UserEntity
+import com.example.travel.data.local.db.entity.VoiceNoteEntity
 import com.example.travel.data.local.db.entity.WeatherCacheEntity
 
 @Database(
@@ -65,9 +70,14 @@ import com.example.travel.data.local.db.entity.WeatherCacheEntity
         SettlementEntity::class,
         FavoriteRestaurantEntity::class,
         JournalEntity::class,
-        JournalEntryEntity::class
+        JournalEntryEntity::class,
+        JournalMediaEntity::class,
+        JournalLocationEntity::class,
+        VoiceNoteEntity::class,
+        AIJournalSummaryEntity::class,
+        AITripStoryEntity::class
     ],
-    version = 15,
+    version = 18,
     exportSchema = false
 )
 abstract class TravelDatabase : RoomDatabase() {
