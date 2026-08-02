@@ -153,4 +153,16 @@ abstract class RepositoryModule {
     abstract fun bindAIJournalRepository(
         impl: com.example.travel.data.repository.AIJournalRepositoryImpl
     ): com.example.travel.domain.repository.AIJournalRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindJournalExportRepository(
+        impl: com.example.travel.data.repository.JournalExportRepositoryImpl
+    ): com.example.travel.domain.repository.JournalExportRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindJournalBackupRepository(
+        impl: com.example.travel.data.repository.JournalBackupRepositoryImpl
+    ): com.example.travel.domain.repository.JournalBackupRepository
 }
