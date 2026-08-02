@@ -13,13 +13,16 @@ import com.example.travel.data.local.db.dao.LocalGuideDao
 import com.example.travel.data.local.db.dao.NearbyDao
 import com.example.travel.data.local.db.dao.OfflineRegionDao
 import com.example.travel.data.local.db.dao.PackingDao
+import com.example.travel.data.local.db.dao.PhotoMemoryDao
 import com.example.travel.data.local.db.dao.RouteDao
 import com.example.travel.data.local.db.dao.SafetyDao
 import com.example.travel.data.local.db.dao.SearchDao
+import com.example.travel.data.local.db.dao.TimelineDao
 import com.example.travel.data.local.db.dao.TripNoteDao
 import com.example.travel.data.local.db.dao.UserDao
 import com.example.travel.data.local.db.dao.WeatherDao
 import com.example.travel.data.local.db.entity.AIJournalSummaryEntity
+import com.example.travel.data.local.db.entity.AIPhotoAnalysisEntity
 import com.example.travel.data.local.db.entity.AITripStoryEntity
 import com.example.travel.data.local.db.entity.AiTripPlanEntity
 import com.example.travel.data.local.db.entity.ExpenseEntity
@@ -32,17 +35,24 @@ import com.example.travel.data.local.db.entity.JournalEntryEntity
 import com.example.travel.data.local.db.entity.JournalLocationEntity
 import com.example.travel.data.local.db.entity.JournalMediaEntity
 import com.example.travel.data.local.db.entity.LocalGuideEntity
+import com.example.travel.data.local.db.entity.MemoryRouteEntity
 import com.example.travel.data.local.db.entity.NearbyPlaceCacheEntity
 import com.example.travel.data.local.db.entity.OfflineRegionEntity
 import com.example.travel.data.local.db.entity.PackingItemEntity
+import com.example.travel.data.local.db.entity.PhotoMemoryEntity
+import com.example.travel.data.local.db.entity.PhotoMetadataEntity
+import com.example.travel.data.local.db.entity.PhotoMomentEntity
+import com.example.travel.data.local.db.entity.PhotoTagEntity
 import com.example.travel.data.local.db.entity.RouteCacheEntity
 import com.example.travel.data.local.db.entity.SafetyReportEntity
 import com.example.travel.data.local.db.entity.SearchCacheEntity
 import com.example.travel.data.local.db.entity.SearchHistoryEntity
 import com.example.travel.data.local.db.entity.SettlementEntity
+import com.example.travel.data.local.db.entity.TimelineEventEntity
 import com.example.travel.data.local.db.entity.TripBudgetEntity
 import com.example.travel.data.local.db.entity.TripMemberEntity
 import com.example.travel.data.local.db.entity.TripNoteEntity
+import com.example.travel.data.local.db.entity.TripStatisticsEntity
 import com.example.travel.data.local.db.entity.UserEntity
 import com.example.travel.data.local.db.entity.VoiceNoteEntity
 import com.example.travel.data.local.db.entity.WeatherCacheEntity
@@ -75,9 +85,17 @@ import com.example.travel.data.local.db.entity.WeatherCacheEntity
         JournalLocationEntity::class,
         VoiceNoteEntity::class,
         AIJournalSummaryEntity::class,
-        AITripStoryEntity::class
+        AITripStoryEntity::class,
+        PhotoMemoryEntity::class,
+        PhotoMetadataEntity::class,
+        AIPhotoAnalysisEntity::class,
+        PhotoTagEntity::class,
+        PhotoMomentEntity::class,
+        TimelineEventEntity::class,
+        MemoryRouteEntity::class,
+        TripStatisticsEntity::class
     ],
-    version = 18,
+    version = 21,
     exportSchema = false
 )
 abstract class TravelDatabase : RoomDatabase() {
@@ -98,6 +116,8 @@ abstract class TravelDatabase : RoomDatabase() {
     abstract fun groupExpenseDao(): GroupExpenseDao
     abstract fun foodDao(): FoodDao
     abstract fun journalDao(): JournalDao
+    abstract fun photoMemoryDao(): PhotoMemoryDao
+    abstract fun timelineDao(): TimelineDao
 
     companion object {
         const val DATABASE_NAME = "travel_buddy_db"

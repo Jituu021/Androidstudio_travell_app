@@ -77,4 +77,10 @@ object DatabaseModule {
 
     @Provides
     fun provideJournalDao(db: TravelDatabase): com.example.travel.data.local.db.dao.JournalDao = db.journalDao()
+
+    @Provides
+    fun providePhotoMemoryDao(db: TravelDatabase): com.example.travel.data.local.db.dao.PhotoMemoryDao = db.photoMemoryDao()
+
+    @Provides
+    fun provideTimelineDao(db: TravelDatabase): com.example.travel.data.local.db.dao.TimelineDao = db.timelineDao()
 }

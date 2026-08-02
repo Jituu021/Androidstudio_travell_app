@@ -165,4 +165,34 @@ abstract class RepositoryModule {
     abstract fun bindJournalBackupRepository(
         impl: com.example.travel.data.repository.JournalBackupRepositoryImpl
     ): com.example.travel.domain.repository.JournalBackupRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindPhotoMemoryRepository(
+        impl: com.example.travel.data.repository.PhotoMemoryRepositoryImpl
+    ): com.example.travel.domain.repository.PhotoMemoryRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindPhotoMetadataRepository(
+        impl: com.example.travel.data.repository.PhotoMetadataRepositoryImpl
+    ): com.example.travel.domain.repository.PhotoMetadataRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAIPhotoRepository(
+        impl: com.example.travel.data.repository.AIPhotoRepositoryImpl
+    ): com.example.travel.domain.repository.AIPhotoRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindMemoryTimelineRepository(
+        impl: com.example.travel.data.repository.MemoryTimelineRepositoryImpl
+    ): com.example.travel.domain.repository.MemoryTimelineRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindMemoryMapRepository(
+        impl: com.example.travel.data.repository.MemoryMapRepositoryImpl
+    ): com.example.travel.domain.repository.MemoryMapRepository
 }
