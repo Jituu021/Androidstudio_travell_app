@@ -50,4 +50,10 @@ object DatabaseModule {
 
     @Provides
     fun provideWeatherDao(db: TravelDatabase): com.example.travel.data.local.db.dao.WeatherDao = db.weatherDao()
+
+    @Provides
+    fun provideAiTripPlanDao(db: TravelDatabase): com.example.travel.data.local.db.dao.AiTripPlanDao = db.aiTripPlanDao()
+
+    @Provides
+    fun provideBudgetDao(db: TravelDatabase): com.example.travel.data.local.db.dao.BudgetDao = db.budgetDao()
 }

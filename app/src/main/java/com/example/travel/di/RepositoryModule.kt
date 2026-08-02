@@ -81,4 +81,16 @@ abstract class RepositoryModule {
     abstract fun bindWeatherRepository(
         impl: com.example.travel.data.repository.WeatherRepositoryImpl
     ): com.example.travel.domain.repository.WeatherRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAITripRepository(
+        impl: com.example.travel.data.repository.AITripRepositoryImpl
+    ): com.example.travel.domain.repository.AITripRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindBudgetRepository(
+        impl: com.example.travel.data.repository.BudgetRepositoryImpl
+    ): com.example.travel.domain.repository.BudgetRepository
 }
